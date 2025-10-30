@@ -1,11 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
 
+type Reservation = { id: number} & CreateReservationDto;
+
 @Injectable()
 export class ReservationsService {
-  create(createReservationDto: CreateReservationDto) {
-    return 'This action adds a new reservation';
+  private seq = 1;
+  private rows: Reservation[] = [];
+
+  create(dto: CreateReservationDto): Reservation {
+    const row = { id: this.seq++, ...dto };
+    this.rows.push(row);
+    return row;
   }
 
   findAll() {
