@@ -25,7 +25,7 @@ export default tseslint.config(
       },
       sourceType: 'commonjs',
       parserOptions: {
-        projectService: true,           // 型情報を使ったlint
+        projectService: true, // 型情報を使ったlint
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -35,21 +35,30 @@ export default tseslint.config(
   {
     rules: {
       // --- 実害系（Error） ---
-      'eqeqeq': 'error',
+      eqeqeq: 'error',
       'no-duplicate-imports': 'error',
       '@typescript-eslint/no-floating-promises': 'error',
-      '@typescript-eslint/no-misused-promises': ['error', { checksVoidReturn: true }],
+      '@typescript-eslint/no-misused-promises': [
+        'error',
+        { checksVoidReturn: true },
+      ],
       '@typescript-eslint/return-await': ['error', 'in-try-catch'],
       '@typescript-eslint/consistent-type-imports': 'error',
-      '@typescript-eslint/no-unused-vars': ['error', {
-        argsIgnorePattern: '^_',
-        varsIgnorePattern: '^_',
-      }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+        },
+      ],
 
       // --- 学習阻害しにくい系（Warn） ---
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/explicit-function-return-type': 'warn',
-      '@typescript-eslint/ban-ts-comment': ['warn', { 'ts-ignore': 'allow-with-description' }],
+      '@typescript-eslint/ban-ts-comment': [
+        'warn',
+        { 'ts-ignore': 'allow-with-description' },
+      ],
       'no-console': ['warn', { allow: ['warn', 'error'] }],
 
       // --- 整形はPrettierに委譲 ---
@@ -67,7 +76,7 @@ export default tseslint.config(
     },
   },
 
-   // 7) テストファイルのオーバーライド
+  // 7) テストファイルのオーバーライド
   {
     files: ['**/*.spec.ts', '**/*.test.ts', '**/*.e2e-spec.ts', 'test/**/*.ts'],
     plugins: { jest: jestPlugin },
@@ -76,11 +85,11 @@ export default tseslint.config(
     },
     rules: {
       // 健全性チェック（最小）
-      'jest/expect-expect': 'error',          // 断言漏れ防止
-      'jest/no-identical-title': 'error',     // タイトル重複禁止
-      'jest/no-disabled-tests': 'warn',       // skip放置の可視化
-      'jest/valid-expect': 'error',           // expectの誤用検知
-      'jest/prefer-called-with': 'warn',      // モック呼び出しの引数検証を促す
+      'jest/expect-expect': 'error', // 断言漏れ防止
+      'jest/no-identical-title': 'error', // タイトル重複禁止
+      'jest/no-disabled-tests': 'warn', // skip放置の可視化
+      'jest/valid-expect': 'error', // expectの誤用検知
+      'jest/prefer-called-with': 'warn', // モック呼び出しの引数検証を促す
 
       // テストでのconsoleは許容（デバッグ容易化）
       'no-console': 'off',
