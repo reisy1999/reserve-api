@@ -39,7 +39,8 @@
 | departmentId | number             | ✅   | 部署参照                         |
 | dateOfBirth  | string(YYYY-MM-DD) | ✅   | 生年月日（ローカル日付）         |
 | sexCode      | number             | ✅   | ISO 5218（0/1/2/9）              |
-| chartId      | string             | ✅   | カルテID（EMR 側キー）           |
+| chartId      | number             | ✅   | カルテID（EMR 側キー）           |
+| staffId      | number             | ✅   | 職員ID          |
 
 ### 3.2 Department（部署）
 
@@ -71,8 +72,8 @@
 | staffId           | number             | ✅   | 職員 ID（Staff 参照）                                      |
 | departmentId      | number             | ✅   | 部署 ID（Department 参照）                                 |
 | reservationTypeId | number             | ✅   | 予約種別 ID（ReservationType 参照）                        |
-| serviceDateLocal  | string(YYYY-MM-DD) | ✅   | サービス実施日（Asia/Tokyo のローカル日付）                |
-| startMinuteOfDay  | number(0..1439)    | ✅   | 当日 00:00 からの分オフセット                              |
+| serviceDateLocal  | string(YYYY-MM-DD) | ✅   | 予約日                |
+| startMinuteOfDay  | number(0..1439)    | ✅   | 予約時刻 00:00 からの分オフセット                              |
 | durationMinutes   | number(>0)         | ✅   | 予約時間（分）                                             |
 | periodKey         | string             | ✅   | 年度キー（例: `FY2025`）。生成列または保存のいずれかに統一 |
 
@@ -96,7 +97,7 @@
 
 - **時間帯重複の禁止（業務制約）**
   - 同一 `(staffId, serviceDateLocal)` において、`[start, end)` 区間が**重ならない**こと。
-  - 端点一致（`end == start`）を許容するかは運用ポリシーで決定（本書では**許容**を初期案とする）。
+  - 端点一致（`end == start`）を許容。
 
 ---
 

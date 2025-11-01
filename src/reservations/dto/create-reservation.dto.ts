@@ -1,12 +1,63 @@
-import { IsInt, IsString, Min, Max, Matches } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsDefined,
+  IsInt,
+  IsPositive,
+  Min,
+  Max,
+  Matches,
+  Validate,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
+} from 'class-validator';
+
+const YMD = /^\d{4}-\d{2}-\d{2}$/;
+
+@ValidatorConstraint({ name: 'IsRealYmd', async: false })
+class IsRealYmdConstraint implements ValidatorConstraintInterface {
+  validate(value: string): boolean {
+    if (!YMD.test(value)) return false;
+    const [y, m, d] = value.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    return (
+      dt.getFullYear() === y &&
+      dt.getMonth() === m - 1 &&
+      dt.getDate() === d
+    );
+  }
+  defaultMessage() {
+    return 'serviceDateLocal must be a real calendar date (YYYY-MM-DD).';
+  }
+}
 
 export class CreateReservationDto {
-  @IsInt() staffId!: number;
+  @IsDefined()
+  @Matches(YMD, { message: 'serviceDateLocal must match YYYY-MM-DD' })
+  @Validate(IsRealYmdConstraint)
+  serviceDateLocal!: string;
 
-  @IsString()
-  @Matches(/~\d{4}-\d{2}-\d{2}$/) //YYYY-MM-DD
-  date!: string;
+  @IsDefined()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(1439)
+  startMinuteOfDay!: number;
 
-  @IsInt() @Min(0) @Max(1440) start_min!: number;
-  @IsInt() @Min(0) @Max(1440) end_min!: number;
+  @IsDefined()
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  durationMinutes!: number;
+
+  @IsDefined()
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  staffId!: number;
+
+  @IsDefined()
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  reservationTypeId!: number;
 }
