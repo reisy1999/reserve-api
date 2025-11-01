@@ -1,48 +1,61 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Reservation } from './entities/reservation.entity';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
 
-export type Reservation = { id: number } & CreateReservationDto;
-
 @Injectable()
 export class ReservationsService {
-  private seq = 1;
-  private rows: Reservation[] = [];
+  constructor(
+    @InjectRepository(Reservation)
+    private readonly repo: Repository<Reservation>,
+  ) {}
 
-  //  予約新規作成
-  create(dto: CreateReservationDto): Reservation {
-    const row = { id: this.seq++, ...dto };
-    this.rows.push(row);
-    return row;
+  // 予約作成
+  async create(dto: CreateReservationDto): Promise<Reservation> {
+    const entity = this.repo.create(dto);
+    return await this.repo.save(entity);
   }
 
-  //  予約一覧検索
-  findAll(): Reservation[] {
-    return this.rows;
+  // 全件取得（デフォルト並び：日付＋開始時間）
+  async findAll(): Promise<Reservation[]> {
+    return await this.repo.find({
+      order: {
+        serviceDateLocal: 'ASC',
+        startMinuteOfDay: 'ASC',
+      },
+    });
   }
-  //  予約ID検索(findで一意性保証)
-  findOne(id: number): Reservation {
-    const hit = this.rows.find((r) => r.id === id);
-    if (!hit) throw new NotFoundException();
+
+  // 単件取得（存在しなければ404）
+  async findOne(id: number): Promise<Reservation> {
+    const hit = await this.repo.findOneBy({ id });
+    if (!hit) throw new NotFoundException(`Reservation #${id} not found`);
     return hit;
   }
-  //  予約条件検索
-  findByField(field: keyof Reservation, value: string | number): Reservation[] {
-    return this.rows.filter((r) => r[field] === value);
+
+  // 更新（部分更新）
+  async update(id: number, dto: UpdateReservationDto): Promise<Reservation> {
+    const hit = await this.findOne(id);
+    const merged = this.repo.merge(hit, dto);
+    return await this.repo.save(merged);
   }
 
-  //  予約更新
-  update(id: number, dto: UpdateReservationDto): Reservation {
-    const i = this.rows.findIndex((r) => r.id === id);
-    if (i < 0) throw new NotFoundException();
-    this.rows[i] = { ...this.rows[i], ...dto };
-    return this.rows[i];
+  // 削除（存在しなければ404）
+  async remove(id: number): Promise<void> {
+    const hit = await this.findOne(id);
+    await this.repo.remove(hit);
   }
 
-  //  予約削除
-  remove(id: number): void {
-    const i = this.rows.findIndex((r) => r.id === id);
-    if (i < 0) throw new NotFoundException();
-    this.rows.splice(i, 1);
+  // ユースケース別検索例：職員IDと日付で取得
+  async findByStaffAndDate(
+    staffId: number,
+    serviceDateLocal: string,
+  ): Promise<Reservation[]> {
+    return await this.repo.find({
+      where: { staffId, serviceDateLocal },
+      order: { startMinuteOfDay: 'ASC' },
+    });
   }
 }

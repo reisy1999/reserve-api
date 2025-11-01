@@ -7,7 +7,12 @@ import { StaffModule } from './staff/staff.module';
 import { ReservationTypeModule } from './reservation-type/reservation-type.module';
 
 @Module({
-  imports: [ReservationsModule, DepartmentModule, StaffModule, ReservationTypeModule],
+  imports: [
+    ReservationsModule,
+    DepartmentModule,
+    StaffModule,
+    ReservationTypeModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

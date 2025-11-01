@@ -20,9 +20,7 @@ class IsRealYmdConstraint implements ValidatorConstraintInterface {
     const [y, m, d] = value.split('-').map(Number);
     const dt = new Date(y, m - 1, d);
     return (
-      dt.getFullYear() === y &&
-      dt.getMonth() === m - 1 &&
-      dt.getDate() === d
+      dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d
     );
   }
   defaultMessage() {
