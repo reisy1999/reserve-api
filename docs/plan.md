@@ -1,241 +1,200 @@
-# 予約API 学習特化型 実装計画書（改訂版）
+# 予約API ハンズオン実装プラン（リビルド版）
 
-**目的**: TypeScript/NestJSを**実践で学びながら**、職員向け予約APIを11/5までに可視化可能な形で完成させる
-**方針**: 小さく作る → 正常系をまず通す → 入口を堅くする → 最低限の運用安全ラインを足す
-
----
-
-## 前提
-
-* **技術**: NestJS, TypeORM, SQLite（開発は `synchronize: true`、本番はマイグレを別途）
-* **学習重点**: Controller / Service / Entity / DTO / ValidationPipe
-* **後回し**: 本格RBAC/JWT、E2E自動テスト、Docker、本番向け運用チューニング
+**目的**: 初学者が NestJS/TypeORM を学びながら、職員向け予約APIを仕様通りに完成させる。  
+**ゴール**: `docs/data-specification.md` の要件（年度1回制限・DTO最小主義など）を意図的に満たし、Swaggerでデモできる状態にする。
 
 ---
 
-## スプリント計画（11/5〆に間に合わせる）
+## 全体方針
 
-* **Day 0（今日）**: Phase 1 完了（POST/GET 正常系、SQLite永続化）
-* **Day 1**: Phase 2（PATCH/DELETE と例外ハンドリング）
-* **Day 2**: Phase 3（DTO＋ValidationPipeで入口を堅く）
-* **Day 3**: Phase 4（`periodKey`算出＋年度1回制限/サービス層チェック）
-* **Day 4（11/5）**: Phase 5（管理UI/管理APIの簡易ガード）＋ Phase 6（Swaggerで可視化）→ ドキュメント整備
-
-> 時間帯重複チェックは**Phase 7（任意）**へ回す。まずは“動く＋年度1回の要件”を満たす。
+- 段階ごとに「学ぶ → 手を動かす → 動作確認」のループを繰り返す。
+- 仕様が満たされているか毎ステップで確認し、次のステップまで余計な実装はしない。
+- すべてのエンドポイントは `/api/...` に集約し、管理系は `/api/admin/...` でガードする。
+- SQLite + TypeORM の開発環境では `synchronize: true` を使い、移行は最後にマイグレーションで固める。
 
 ---
 
-## Phase 1: 最小CRUD（学習のコア）
+## マイルストーン一覧
 
-### 目標
+| 番号 | マイルストン名     | 目的                                                          |
+| ---- | ------------------ | ------------------------------------------------------------- |
+| M0   | オリエンテーション | プロジェクトと仕様を把握する                                  |
+| M1   | 基盤セットアップ   | Nest/TypeORMの骨格と設定を固める                              |
+| M2   | 予約CRUDの正常系   | Reservationテーブルの基本操作を通す                           |
+| M3   | 入力バリデーション | DTO＋ValidationPipeで入口を堅くする                           |
+| M4   | 業務制約の実装     | `periodKey`算出と年度1回制限を保証する                        |
+| M5   | マスタAPI整備      | Staff / Department / ReservationType を実装する               |
+| M6   | 管理APIガード      | `/api/admin/*` をトークンで保護し、管理ユースケースを追加する |
+| M7   | 可視化と運用準備   | Swagger・設定・マイグレーションを整備する                     |
+| M8   | テストと振り返り   | ユニット/E2Eテストとドキュメント更新で締める                  |
 
-「予約を作成・取得できる」を実現。NestJS/TypeORMの骨格を掴む。
-
-### やること
-
-1. **環境**
-
-   * `nest new reserve-api`
-   * TypeORM + SQLite導入、`synchronize: true`（開発時のみ）
-2. **Reservation エンティティ（最小）**
-
-   * `id: number (PK)`
-   * `staffId: string`
-   * `reservationTypeId: number`
-   * `serviceDateLocal: string (YYYY-MM-DD)`
-   * `startMinuteOfDay: number (0..1439)`
-   * `durationMinutes: number (>0)`
-   * ※ この段階では `periodKey` は未保存（後で自動算出して追加）
-3. **Service（正常系のみ）**
-
-   * `create(dto)`, `findAll()`, `findOne(id)`
-4. **Controller**
-
-   * `POST /reservations`
-   * `GET /reservations`
-   * `GET /reservations/:id`
-
-### 検証
-
-* POSTで作成 → SQLiteに保存
-* GETで取得 → 作成レコードが返る
-* 再起動後も残る
-
-### 完了条件
-
-* [ ] POST/GET 正常系が通る
-* [ ] 保存内容を自分の言葉で説明できる
+以下、各マイルストーンの詳細。
 
 ---
 
-## Phase 2: 更新・削除 + 例外
+## M0: オリエンテーション（学習準備）
 
-### 目標
+**到達目標**: 仕様・実装範囲・利用技術を説明できる。
 
-CRUDを完成させ、例外の基本（404等）を押さえる。
+- `README.md`, `docs/data-specification.md`, `docs/system-architecture.md` を読み、要件にマーキングする。
+- 必要なコマンド（`npm run start:dev`, `npm run test`, `npm run test:e2e`）を確認し手元で実行する。
+- `src/` のモジュール構成を把握し、どのフォルダに何を置くかを図示する。
 
-### やること
+**確認リスト**
 
-* Service: `update(id, dto)`, `remove(id)`
-* Controller: `PATCH /reservations/:id`, `DELETE /reservations/:id`
-* 例外: 見つからない場合は `NotFoundException`
-
-### 検証
-
-* PATCHで値が更新される
-* DELETE後にGETで404
-
-### 完了条件
-
-* [ ] 全CRUD動作
-* [ ] 404の返り方を説明できる
+- [ ] 仕様で必須の機能と任意機能を区別できる
+- [ ] メインとなるエンドポイント一覧を自分の言葉で整理したノートがある
 
 ---
 
-## Phase 3: 入力検証（DTOで“入口を堅く”）
+## M1: 基盤セットアップ
 
-### 目標
+**目的**: NestJS + TypeORM + SQLite を動作させ、`Reservation` エンティティを永続化できる基盤を整える。
 
-**不正入力の遮断**。DTO最小主義＋ValidationPipeを定着させる。
+- `AppModule` に `TypeOrmModule.forRoot` を設定し、`Reservation` エンティティを登録。
+- `ReservationModule` を生成 (`nest g resource reservations --no-spec` など) し、Controller/Service/Entityの骨格を整える。
+- `Reservation` エンティティに仕様に沿ったカラムを定義（`periodKey` は一旦 nullable）。
+- 開発環境用に `.env.development` を用意し、`ADMIN_TOKEN` など最低限の設定値を追加。
 
-### やること
+**確認リスト**
 
-1. **CreateReservationDto（最小）**
-
-   * `serviceDateLocal`：`YYYY-MM-DD` 厳密一致＋実在日付（カスタムバリデータ）
-   * `startMinuteOfDay`：整数 `0..1439`
-   * `durationMinutes`：整数 `>0`
-   * `staffId`：文字列、`reservationTypeId`：整数 `>0`
-   * **`periodKey` は受け取らない**（サーバ算出）
-2. **ValidationPipe（global）**
-
-   * `whitelist: true`
-   * `forbidNonWhitelisted: true`
-   * `transform: true`（数値文字列→number）
-
-### 検証
-
-* フォーマット不正・範囲外は **400**
-* 正常値は **201**
-
-### 完了条件
-
-* [ ] 不正入力が確実に 400 で落ちる
-* [ ] DTOに“必要最小限しかない”理由を説明できる
+- [ ] `npm run start:dev` が成功し、アプリが起動する
+- [ ] SQLite に `reservations` テーブルが生成される（`sqlite3 db.sqlite ".schema reservations"`）
 
 ---
 
-## Phase 4: 業務ロジック（`periodKey`算出 & 年度1回）
+## M2: 予約CRUDの正常系
 
-### 目標
+**目的**: DTOなしの暫定実装で構わないので、Reservationの基本CRUDを通す。要件を満たす前に動作を理解する。
 
-`serviceDateLocal` から **`periodKey`（例: `FY2025`）を算出**して保存。
-同一 `(staffId, reservationTypeId, periodKey)` の2件目を **409** で弾く（まずはサービス層チェック）。
+- Serviceに `create`, `findAll`, `findOne`, `update`, `remove` を実装。
+- Controllerに `POST /api/reservations`, `GET /api/reservations`, `GET /api/reservations/:id`, `PATCH /api/reservations/:id`, `DELETE /api/reservations/:id` を追加。
+- 正常系のみを対象に、`curl` や Thunder Client で手動検証する。  
+  例: `curl -X POST http://localhost:3000/api/reservations -H "Content-Type: application/json" -d '{"staffId":"S001","reservationTypeId":1,"serviceDateLocal":"2025-04-01","startMinuteOfDay":540,"durationMinutes":30}'`
+- `findOne` と `remove` では存在しない場合に `NotFoundException` を投げる。
 
-### やること
+**確認リスト**
 
-* `periodKey` 算出（4/1起点：4–12月は当年、1–3月は前年）
-* `create()` 内で保存前に同一キーの既存有無を検索 → あれば `ConflictException`
-* 余裕があれば **DBのUNIQUE制約**（`(staffId, reservationTypeId, periodKey)`）をマイグレーションで追加
-  ※ 締切優先なら**サービス層チェックでOK**（後でDB制約を足す）
-
-### 検証
-
-* `2026-03-31 → FY2025` / `2026-04-01 → FY2026`
-* 同一年度・同一種別の2件目は 409
-
-### 完了条件
-
-* [ ] `periodKey` が正しく入る
-* [ ] 年度1回ルールが機能する
+- [ ] CRUDすべてが正常に動作し、再起動後もデータが残る
+- [ ] `NotFoundException` の挙動を説明できる（どこで投げているか理解する）
 
 ---
 
-## Phase 5: 管理アクセス（MVPの安全ライン）
+## M3: 入力バリデーションとDTO
 
-### 目標
+**目的**: `CreateReservationDto` / `UpdateReservationDto` を導入し、仕様通りの入力制約を掛ける。
 
-ログイン機能なしで**管理者専用ページとAPI**を最低限守る。
+- Global `ValidationPipe` を `main.ts` に追加（`whitelist: true`, `forbidNonWhitelisted: true`, `transform: true`）。
+- `CreateReservationDto` に以下の検証を実装:
+  - `serviceDateLocal`: `YYYY-MM-DD` 形式＋実在日付（カスタムバリデータ）
+  - `startMinuteOfDay`: 整数かつ `0..1439`
+  - `durationMinutes`: 正の整数
+  - `staffId`: 空文字禁止の文字列
+  - `reservationTypeId`: 正の整数
+- `UpdateReservationDto` は `PartialType(CreateReservationDto)` を利用しつつ、部分更新時のバリデーションが効くようにする。
+- 不正入力ケース（形式/範囲/余分なプロパティ）の手動検証を行い、400が返ることを確認。
 
-### やること
+**確認リスト**
 
-* ルーティング分離：
-
-  * 一般API：`/api/reservations/*`
-  * **管理API**：`/api/admin/*`（**`X-Admin-Token`** を `ADMIN_TOKEN`（env）で検証）
-  * **管理UI**：`/admin`（ServeStaticで配信、**API側で必ずガード**）
-* 可能ならリバースプロキシ（Nginx等）で `/admin` と `/api/admin/*` に **Basic認証 + IP許可** を追加（ダブルロック）
-* 監査ログ：`who / what / when` を最小で記録（stdoutで可）
-
-### 検証
-
-* `X-Admin-Token` が無い/不一致 → 401/403
-* トークン一致で管理APIが動作
-
-### 完了条件
-
-* [ ] `/api/admin/*` がトークン必須
-* [ ] `/admin` で管理UIが見える（UI判定に依存せず**APIは常にサーバ側で検証**）
+- [ ] DTOに存在しないプロパティを送ると 400 が返る
+- [ ] うるう年を含む実在/非実在日付のテストケースを用意している
 
 ---
 
-## Phase 6: Swagger導入（可視化）
+## M4: 業務制約の実装（periodKey と年度1回制限）
 
-### 目標
+**目的**: 仕様で最重要となる年度制約を実装し、意図的にテストする。
 
-**作ったAPIを見せられる状態**に。操作もSwagger UIから実行可能に。
+- `src/utils/date.ts` などに `calculatePeriodKey(serviceDateLocal: string): string` を実装。
+- `ReservationsService.create` で保存前に `periodKey` を算出し、DTOに含めずエンティティへ設定する。
+- 同一 `(staffId, reservationTypeId, periodKey)` が存在する場合は `ConflictException` を投げる。
+- TypeORM のユニーク制約（`@Index(['staffId', 'reservationTypeId', 'periodKey'], { unique: true })`）を追加し、DBレベルでも保証する。
+  - `synchronize: true` で動作確認後、`typeorm migration:generate` で正式なマイグレーションファイルを作成（M7で適用）。
+- 年度が境界（3/31→4/1）を跨ぐテストデータで periodKey が変わることを確認。
 
-### やること
+**確認リスト**
 
-* Swaggerを有効化して `/api-docs` 配信（タイトル「職員予約API」）
-* 主要DTO/レスポンスを反映
-
-### 検証
-
-* `/api-docs` にアクセスできる
-* UIからCRUDと管理APIを試せる
-
-### 完了条件
-
-* [ ] Swagger UIで主要操作が確認できる
-* [ ] 第三者にデモ可能
+- [ ] 同一スタッフ・同一年度・同一種別で2件目が 409 になる
+- [ ] periodKeyの算出ロジックをユニットテストでカバーしている
 
 ---
 
-## 完成判定（Definition of Done）
+## M5: マスタAPI整備（Staff / Department / ReservationType）
 
-**技術**
+**目的**: 予約が参照するマスタデータを整備し、FK整合性をチェックできるようにする。
 
-* [ ] Module/Controller/Service/Entity/DTO/ValidationPipe の役割を説明できる
-* [ ] SQLite+TypeORM でCRUDが安定
-* [ ] `periodKey` の算出と年度1回チェックが入っている
+- `Staff`, `Department`, `ReservationType` の各モジュールを実装（エンティティ/DTO/Controller/Service）。
+- 仕様の必須フィールドを実装し、`Create/Update` DTO にバリデーションを付与。
+- Reservation 登録時に存在しない `staffId` / `reservationTypeId` を弾くため、`ReservationsService.create` 内で存在確認を行う。
+- Staff 作成時の `departmentId` 参照チェックも実装。
 
-**成果物**
+**確認リスト**
 
-* [ ] 予約API（CRUD）＋管理API（トークンガード）
-* [ ] Swaggerで可視化
-* [ ] docs（`data-specification.md`, `system-architecture.md` など）整備
-
-**学習**
-
-* [ ] “動く”から“堅くする”へ進める観点を言語化できる
+- [ ] 参照整合性違反が明示的なエラーメッセージで返る
+- [ ] マスタAPIのCRUD操作が Swagger（後述）に反映されている
 
 ---
 
-## 後回し（Phase 7以降・余裕があれば）
+## M6: 管理APIとガード
 
-* [ ] 時間帯重複チェック（同一日 `[start, end)` の重なり禁止）
-* [ ] DBのUNIQUE制約を正式にマイグレーション化
-* [ ] E2E自動テスト（CRUD + 業務制約）
-* [ ] Staff/Department/ReservationType のマスタAPI
-* [ ] Docker 化 / 本番向け設定最適化（CORS, Helmet, Rate Limit 等）
+**目的**: 管理者向けエンドポイントを `/api/admin/*` に切り出し、トークンで保護する。
+
+- `AdminTokenGuard` を `src/common/guards/admin-token.guard.ts` に実装し、`X-Admin-Token` と `process.env.ADMIN_TOKEN` の一致を検証。
+- 管理用モジュールを作成し、最低限の機能を実装（例: 予約一覧の期間フィルタ、強制キャンセル、集計など）。
+- 一般向けAPIと管理APIを `AppModule` で別ルートにまとめ、`/api/admin` プレフィックスには必ず `UseGuards(AdminTokenGuard)` を設定。
+- （任意）`ServeStaticModule` を用いて `/admin` へ静的ファイルを配信し、ブラウザから管理UIにアクセスできるようにする。
+
+**確認リスト**
+
+- [ ] トークン無し/不一致で 401/403 が返る
+- [ ] 管理APIを使って年度別集計を取得できる
 
 ---
 
-## 学習のコツ（再掲・締切対応版）
+## M7: 可視化と運用準備
 
-1. **まず正常系だけを通す**（異常系は後から）
-2. **“入口は堅く”を一箇所（DTO/ValidationPipe）に集中**
-3. **サービス層でドメイン制約を一旦吸収**（DB制約は後追い）
-4. **管理アクセスは** UIではなく**APIで守る**（トークン＋可能ならプロキシBasic認証）
-5. **毎日デモ可能な状態**を維持（Swaggerで見せる）
+**目的**: APIを第三者に見せられる状態にし、設定/マイグレーションを整える。
+
+- `main.ts` に Swagger を導入し、`/api-docs` で公開。主要な DTO とレスポンスに説明を付ける。
+- `config` ディレクトリを整備し、`ConfigModule` で環境変数を型安全に読み出す（ポート番号、Adminトークン等）。
+- `typeorm` ディレクトリで migration を生成・適用し、`synchronize: false` に切り替えても動作することを確認。
+- `.env.example` を作成し、必要な環境変数を明記する。
+
+**確認リスト**
+
+- [ ] Swagger UI から CRUD と管理API が操作できる
+- [ ] `npm run typeorm migration:run` 実行後もアプリが正常に起動する
+
+---
+
+## M8: テスト・振り返り・ドキュメント
+
+**目的**: 実装した仕様をテストで裏付け、学習内容を言語化する。
+
+- `ReservationsService` のユニットテストで periodKey 算出・年度制約・重複チェックを検証。
+- `test/` 配下で E2E テストを作成し、代表的なシナリオ（正常系/400/409/404）を網羅する。
+- `docs/data-specification.md` や 本ファイルを最新状態に更新し、実装との差異がないか見直す。
+- 学習ログ（困った点・解決策）を README もしくは別ドキュメントに追記。
+
+**確認リスト**
+
+- [ ] `npm run test` と `npm run test:e2e` がどちらも成功する
+- [ ] 今後追加したい改善点と優先度を明記している
+
+---
+
+## 追加チャレンジ（任意タスク）
+
+- 時間帯重複チェック（Service層もしくは DB チェック制約）
+- 予約キャンセル履歴テーブル・監査ログの実装
+- Jenkins / GitHub Actions など CI でテストとマイグレーションを自動化
+- Docker Compose で SQLite から他 RDB（PostgreSQL 等）への移行検証
+
+---
+
+## 進め方のヒント
+
+1. 各マイルストーンごとにブランチを切り、`README` に達成度をメモする。
+2. 仕様を満たしたら実際にAPIを叩いてスクリーンショットやレスポンス例を残す。
+3. 予期せぬエラーに遭遇したら、ログと再現手順をチケット化してから修正する。
+4. 「何を学んだか」を言語化しながら進めると、次のステップで迷わなくなる。

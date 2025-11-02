@@ -1,9 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Reservation } from './entities/reservation.entity';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
+import { calculatePeriodKey } from '../utils/date';
 
 @Injectable()
 export class ReservationsService {
@@ -14,8 +19,32 @@ export class ReservationsService {
 
   // 予約作成
   async create(dto: CreateReservationDto): Promise<Reservation> {
-    const entity = this.repo.create(dto);
-    return await this.repo.save(entity);
+    const periodKey = calculatePeriodKey(dto.serviceDateLocal);
+    // 一意性のチェック
+    const dup = await this.repo.count({
+      where: {
+        staffId: dto.staffId as string,
+        reservationTypeId: dto.reservationTypeId,
+        periodKey,
+      },
+    });
+    if (dup > 0) {
+      throw new ConflictException('Already reserved once in this fiscal year,');
+    }
+
+    const entity = this.repo.create({ ...dto, periodKey });
+    try {
+      return await this.repo.save(entity);
+    } catch (err: any) {
+      // DBのユニーク制約に引っかかった場合のフォールバック（同時実行など）
+      const msg = String(err?.message ?? '');
+      if (msg.includes('UNIQUE') || msg.includes('SQLITE_CONSTRAINT')) {
+        throw new ConflictException(
+          'Already reserved once in this fiscal year.',
+        );
+      }
+      throw err;
+    }
   }
 
   // 全件取得（デフォルト並び：日付＋開始時間）
