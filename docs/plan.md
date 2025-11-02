@@ -40,7 +40,7 @@
 2. **Reservation エンティティ（最小）**
 
    * `id: number (PK)`
-   * `staffId: number`
+   * `staffId: string`
    * `reservationTypeId: number`
    * `serviceDateLocal: string (YYYY-MM-DD)`
    * `startMinuteOfDay: number (0..1439)`
@@ -105,7 +105,7 @@ CRUDを完成させ、例外の基本（404等）を押さえる。
    * `serviceDateLocal`：`YYYY-MM-DD` 厳密一致＋実在日付（カスタムバリデータ）
    * `startMinuteOfDay`：整数 `0..1439`
    * `durationMinutes`：整数 `>0`
-   * `staffId` / `reservationTypeId`：整数 `>0`
+   * `staffId`：文字列、`reservationTypeId`：整数 `>0`
    * **`periodKey` は受け取らない**（サーバ算出）
 2. **ValidationPipe（global）**
 

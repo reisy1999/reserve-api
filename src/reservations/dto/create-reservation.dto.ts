@@ -6,6 +6,8 @@ import {
   Min,
   Max,
   Matches,
+  IsString,
+  IsNotEmpty,
   Validate,
   ValidatorConstraint,
   ValidatorConstraintInterface,
@@ -48,10 +50,10 @@ export class CreateReservationDto {
   durationMinutes!: number;
 
   @IsDefined()
-  @Type(() => Number)
-  @IsInt()
-  @IsPositive()
-  staffId!: number;
+  @Type(() => String)
+  @IsString()
+  @IsNotEmpty()
+  staffId!: string;
 
   @IsDefined()
   @Type(() => Number)

@@ -48,14 +48,14 @@ export class ReservationsService {
     await this.repo.remove(hit);
   }
 
-  // ユースケース別検索例：職員IDと日付で取得
-  async findByStaffAndDate(
-    staffId: number,
-    serviceDateLocal: string,
-  ): Promise<Reservation[]> {
-    return await this.repo.find({
-      where: { staffId, serviceDateLocal },
-      order: { startMinuteOfDay: 'ASC' },
+  // 職員×年度×種別 検索（年度1回制チェック用）
+  async findByStaffTypePeriod(
+    staffId: string,
+    reservationTypeId: number,
+    periodKey: string,
+  ): Promise<Reservation | null> {
+    return await this.repo.findOne({
+      where: { staffId, reservationTypeId, periodKey },
     });
   }
 }

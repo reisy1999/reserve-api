@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ReservationsModule } from './reservations/reservations.module';
@@ -8,10 +9,13 @@ import { ReservationTypeModule } from './reservation-type/reservation-type.modul
 
 @Module({
   imports: [
+    TypeOrmModule.forRoot({
+      type: 'sqlite',
+      database: 'db.sqlite',
+      entities: [__dirname + '/**/*.entity{.ts,.js}'],
+      synchronize: true, // 開発中のみ
+    }),
     ReservationsModule,
-    DepartmentModule,
-    StaffModule,
-    ReservationTypeModule,
   ],
   controllers: [AppController],
   providers: [AppService],

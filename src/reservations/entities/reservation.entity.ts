@@ -2,18 +2,24 @@ import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 
 @Entity('reservations')
 export class Reservation {
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn('increment') // 自動採番
   id: number;
-  @Column()
-  staffId: number;
-  @Column()
+
+  @Column({ type: 'text' }) // 既方針どおり staffId は string
+  staffId: string;
+
+  @Column({ type: 'integer' })
   reservationTypeId: number;
-  @Column()
-  serviceDateLocal: string; //YYYY-MM-DD
-  @Column()
+
+  @Column({ type: 'text' }) // 'YYYY-MM-DD' を保存
+  serviceDateLocal: string;
+
+  @Column({ type: 'integer' }) // 0–1439 を想定
   startMinuteOfDay: number;
-  @Column()
+
+  @Column({ type: 'integer' }) // 必須（ここが抜けると今回のエラー）
   durationMinutes: number;
-  @Column()
-  periodKey: string;
+
+  @Column({ type: 'text', nullable: true }) // 暫定：nullableで進める
+  periodKey: string | null;
 }
