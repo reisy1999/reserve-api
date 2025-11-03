@@ -74,7 +74,25 @@
 - 入力: `{ currentPin: string, newPin: string }`
 - 成功時 `204 No Content`。失敗時 428 (再認証失敗) や 400 (フォーマット不一致) を考慮。
 
-### 4.4 予約作成
+### 4.4 予約状況確認
+
+- エンドポイント: `GET /api/reservations/check?reservationTypeId={id}&periodKey={key}`
+- 用途: 特定の予約種別・期間において、ユーザーが既に予約を持っているかを確認
+- レスポンス:
+  - `{ exists: false }` - 予約なし
+  - `{ exists: true, reservation: {...} }` - 予約あり（予約詳細を含む）
+- 典型的な使用シーン:
+  ```typescript
+  // 予約種別選択後、適切な画面に遷移
+  const { exists, reservation } = await checkReservation(typeId, periodKey);
+  if (exists) {
+    router.push(`/reservations/${reservation.id}`); // 詳細画面
+  } else {
+    router.push(`/reservations/new?typeId=${typeId}`); // 新規予約画面
+  }
+  ```
+
+### 4.5 予約作成
 
 - エンドポイント: `POST /api/reservations`
 - 入力: `{ slotId: number }`
@@ -88,7 +106,7 @@
 
 ## 5. 公開 / 管理機能
 
-### 5.1 公開 (ヘルスチェック)
+### 5.1 予約種別一覧取得
 
 - `GET /api/reservation-types` を利用。認証不要。
 - App Router の SSG/ISR で一覧をキャッシュ可能。
@@ -154,7 +172,9 @@ app/
  ├─ login/
  │   └─ page.tsx            # ログインフォーム
  ├─ reservations/
- │   └─ page.tsx            # 予約一覧/作成フォーム
+ │   ├─ page.tsx            # 予約種別一覧
+ │   ├─ new/page.tsx        # 新規予約作成フォーム
+ │   └─ [id]/page.tsx       # 予約詳細
  ├─ profile/
  │   └─ page.tsx            # プロフィール + PIN 管理
  └─ api/
@@ -164,7 +184,8 @@ app/
      ├─ staff/
      │   └─ me/route.ts     # GET/PATCH
      └─ reservations/
-         └─ route.ts        # POST
+         ├─ check/route.ts  # GET (予約状況確認)
+         └─ route.ts        # POST (予約作成)
 ```
 
 Route Handler 内でバックエンドの base URL を参照し、Cookie からトークンを抽出してヘッダー付与する。

@@ -2,11 +2,164 @@
 
 ## 8.1 概要
 
-予約APIは、職員が予約枠を選択して予約を登録する機能を提供します。
+予約APIは、職員が予約枠を選択して予約を登録する機能を提供します。また、特定の予約種別・期間での予約状況を確認する機能も提供します。
 
 ---
 
-## 8.2 POST /api/reservations
+## 8.2 GET /api/reservations/check
+
+### 概要
+指定した予約種別と期間において、現在のユーザーが既に予約を持っているかを確認します。フロントエンドで予約詳細画面と新規予約画面の出し分けに使用します。
+
+### 認証
+必須（JWT Bearer認証）
+
+### リクエスト
+
+**Headers**:
+```http
+Authorization: Bearer <access_token>
+```
+
+**Query Parameters**:
+| パラメータ | 型 | 必須 | 説明 | バリデーション |
+|-----------|-----|------|------|---------------|
+| `reservationTypeId` | number | ◯ | 予約種別ID | 1以上の整数 |
+| `periodKey` | string | ◯ | 期間キー（例: `FY2025`） | 文字列（空でない） |
+
+**例**:
+```http
+GET /api/reservations/check?reservationTypeId=1&periodKey=FY2025
+```
+
+---
+
+### レスポンス
+
+#### 成功 (200 OK)
+
+**予約が存在しない場合**:
+```json
+{
+  "exists": false
+}
+```
+
+**予約が存在する場合**:
+```json
+{
+  "exists": true,
+  "reservation": {
+    "id": 123,
+    "staffUid": "e742beb5-6957-4a7c-b9d2-6f5be4694618",
+    "staffId": "900100",
+    "reservationTypeId": 1,
+    "slotId": 10,
+    "serviceDateLocal": "2025-05-01",
+    "startMinuteOfDay": 540,
+    "durationMinutes": 30,
+    "periodKey": "FY2025",
+    "canceledAt": null,
+    "createdAt": "2025-11-03T10:00:00.000Z",
+    "updatedAt": "2025-11-03T10:00:00.000Z",
+    "reservationType": {
+      "id": 1,
+      "name": "インフルエンザ予防接種",
+      "description": null,
+      "active": true
+    },
+    "slot": {
+      "id": 10,
+      "reservationTypeId": 1,
+      "serviceDateLocal": "2025-05-01",
+      "startMinuteOfDay": 540,
+      "durationMinutes": 30,
+      "capacity": 10,
+      "bookedCount": 5,
+      "status": "published"
+    }
+  }
+}
+```
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `exists` | boolean | 予約が存在する場合は `true`、存在しない場合は `false` |
+| `reservation` | object \| undefined | 予約が存在する場合のみ含まれる予約詳細 |
+
+---
+
+#### エラー
+
+**400 Bad Request** - バリデーションエラー
+```json
+{
+  "statusCode": 400,
+  "message": [
+    "reservationTypeId must be an integer number",
+    "reservationTypeId must not be less than 1"
+  ],
+  "error": "Bad Request"
+}
+```
+
+**401 Unauthorized** - 認証エラー
+```json
+{
+  "statusCode": 401,
+  "message": "Unauthorized"
+}
+```
+
+**404 Not Found** - スタッフが見つからない
+```json
+{
+  "statusCode": 404,
+  "message": "Staff not found"
+}
+```
+
+---
+
+### 使用例
+
+```bash
+# 予約存在チェック
+curl -X GET "http://localhost:3000/api/reservations/check?reservationTypeId=1&periodKey=FY2025" \
+  -H "Authorization: Bearer <token>"
+```
+
+### フロントエンドでの活用例
+
+```typescript
+// 予約状況を確認して適切な画面に遷移
+const response = await fetch(
+  `/api/reservations/check?reservationTypeId=1&periodKey=FY2025`,
+  { headers: { Authorization: `Bearer ${token}` } }
+);
+
+const { exists, reservation } = await response.json();
+
+if (exists) {
+  // 既に予約済み → 詳細画面へ
+  router.push(`/reservations/${reservation.id}`);
+} else {
+  // 未予約 → 新規予約画面へ
+  router.push(`/reservations/new?typeId=1`);
+}
+```
+
+---
+
+### 注意事項
+
+- キャンセル済みの予約（`canceledAt` が `null` でない）は「存在しない」として扱われます
+- 同一ユーザーが同一の予約種別・期間で複数の予約を持つことはビジネスルール上不可能です
+- `periodKey` は日本の年度基準（4月開始）で計算されます（詳細は 8.4.3 参照）
+
+---
+
+## 8.3 POST /api/reservations
 
 ### 概要
 指定した予約枠に対して予約を登録します。
@@ -146,9 +299,9 @@ Content-Type: application/json
 
 ---
 
-## 8.3 ビジネスルール
+## 8.4 ビジネスルール
 
-### 8.3.1 プロフィール完了チェック
+### 8.4.1 プロフィール完了チェック
 
 予約を行うには、以下の条件を満たす必要があります：
 
@@ -171,7 +324,7 @@ if (!staff.emrPatientId || !staff.dateOfBirth || !staff.sexCode) {
 
 ---
 
-### 8.3.2 受付期間チェック
+### 8.4.2 受付期間チェック
 
 予約枠には受付期間が設定されています：
 
@@ -185,7 +338,7 @@ if (!staff.emrPatientId || !staff.dateOfBirth || !staff.sexCode) {
 
 ---
 
-### 8.3.3 年度1回制限
+### 8.4.3 年度1回制限
 
 同一職員は、同一年度・同一予約種別の予約を **1回のみ** 実施可能。
 
@@ -231,7 +384,7 @@ if (existing) {
 
 ---
 
-### 8.3.4 定員管理
+### 8.4.4 定員管理
 
 予約枠には定員があり、定員に達したら新規予約を受け付けません。
 
@@ -263,7 +416,7 @@ await slotRepo.save(lockedSlot);
 
 ---
 
-### 8.3.5 重複予約防止
+### 8.4.5 重複予約防止
 
 同一職員が同一枠に複数回予約することを防止します。
 
@@ -274,7 +427,7 @@ UNIQUE (slot_id, staff_id)
 
 ---
 
-## 8.4 シーケンス図
+## 8.5 シーケンス図
 
 ```mermaid
 sequenceDiagram
@@ -340,7 +493,7 @@ sequenceDiagram
 
 ---
 
-## 8.5 開始時刻の表現
+## 8.6 開始時刻の表現
 
 ### startMinuteOfDay の説明
 
@@ -369,7 +522,7 @@ const minute = startMinuteOfDay % 60;
 
 ---
 
-## 8.6 複数年度の予約例
+## 8.7 複数年度の予約例
 
 ### シナリオ: 職員Aが「インフルエンザ予防接種」を予約
 
@@ -381,7 +534,7 @@ const minute = startMinuteOfDay % 60;
 
 ---
 
-## 8.7 予約枠ステータス
+## 8.8 予約枠ステータス
 
 ### ステータス遷移
 
@@ -417,7 +570,7 @@ stateDiagram-v2
 
 ---
 
-## 8.8 使用例
+## 8.9 使用例
 
 ### 成功ケース
 
@@ -521,7 +674,7 @@ curl -X POST http://localhost:3000/api/reservations \
 
 ---
 
-## 8.9 トランザクション分離レベル
+## 8.10 トランザクション分離レベル
 
 ### READ COMMITTED（MySQL デフォルト）
 
@@ -534,7 +687,7 @@ curl -X POST http://localhost:3000/api/reservations \
 
 ---
 
-## 8.10 予約キャンセル
+## 8.11 予約キャンセル
 
 ### 現状
 
@@ -556,7 +709,7 @@ UPDATE reservation_slots SET booked_count = booked_count - 1 WHERE id = 10;
 
 ---
 
-## 8.11 関連ドキュメント
+## 8.12 関連ドキュメント
 
 - **[05-API-Overview.md](./05-API-Overview.md)** - API共通仕様
 - **[06-Auth-API.md](./06-Auth-API.md)** - 認証API詳細

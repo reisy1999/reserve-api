@@ -1,6 +1,8 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { ReservationsService } from './reservations.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
+import { CheckReservationQueryDto } from './dto/check-reservation-query.dto';
+import { CheckReservationResponseDto } from './dto/check-reservation-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentStaff } from '../common/decorators/current-staff.decorator';
 import { Staff } from '../staff/entities/staff.entity';
@@ -10,6 +12,23 @@ import type { Reservation } from './entities/reservation.entity';
 @UseGuards(JwtAuthGuard)
 export class ReservationsController {
   constructor(private readonly reservationsService: ReservationsService) {}
+
+  @Get('check')
+  async checkReservation(
+    @CurrentStaff() staff: Staff,
+    @Query() query: CheckReservationQueryDto,
+  ): Promise<CheckReservationResponseDto> {
+    const reservation = await this.reservationsService.findByStaffTypeAndPeriod(
+      staff.staffUid,
+      query.reservationTypeId,
+      query.periodKey,
+    );
+
+    return {
+      exists: !!reservation,
+      reservation: reservation || undefined,
+    };
+  }
 
   @Post()
   create(

@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, IsNull, Repository } from 'typeorm';
 import { Reservation } from './entities/reservation.entity';
 import { ReservationSlot } from './entities/reservation-slot.entity';
 import { ReservationType } from '../reservation-type/entities/reservation-type.entity';
@@ -20,6 +20,8 @@ export class ReservationsService {
     private readonly reservationRepository: Repository<Reservation>,
     @InjectRepository(ReservationSlot)
     private readonly slotRepository: Repository<ReservationSlot>,
+    @InjectRepository(Staff)
+    private readonly staffRepository: Repository<Staff>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -147,6 +149,29 @@ export class ReservationsService {
         }
         throw error;
       }
+    });
+  }
+
+  async findByStaffTypeAndPeriod(
+    staffUid: string,
+    reservationTypeId: number,
+    periodKey: string,
+  ): Promise<Reservation | null> {
+    const staff = await this.staffRepository.findOne({
+      where: { staffUid },
+    });
+    if (!staff) {
+      throw new NotFoundException('Staff not found');
+    }
+
+    return this.reservationRepository.findOne({
+      where: {
+        staffId: staff.staffId,
+        reservationTypeId,
+        periodKey,
+        canceledAt: IsNull(),
+      },
+      relations: ['reservationType', 'slot'],
     });
   }
 }

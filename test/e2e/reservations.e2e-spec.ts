@@ -262,4 +262,71 @@ describe('予約APIの制約とトランザクションを確認する', () => {
       expect.objectContaining({ slotId: futureSlot.slotId }),
     );
   });
+
+  it('GET /reservations/check で予約の有無を確認できる', async () => {
+    await adminImport('902004', 'チェック 太郎');
+    const { reservationTypeId, slotId } = await createTypeAndSlot({
+      serviceDateLocal: '2025-05-01',
+    });
+
+    const loginRes = await request(httpServer)
+      .post('/api/auth/login')
+      .send({ staffId: '902004', pin: '0000' })
+      .expect(200);
+
+    const accessToken = await completeProfile(
+      '902004',
+      loginRes.body.accessToken,
+      '888004',
+    );
+
+    // 予約前: exists: false
+    const checkBefore = await request(httpServer)
+      .get('/api/reservations/check')
+      .query({ reservationTypeId, periodKey: 'FY2025' })
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(checkBefore.body).toEqual({
+      exists: false,
+    });
+
+    // 予約作成
+    const createRes = await request(httpServer)
+      .post('/api/reservations')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ slotId })
+      .expect(201);
+
+    const reservationId = createRes.body.id;
+
+    // 予約後: exists: true, reservationデータあり
+    const checkAfter = await request(httpServer)
+      .get('/api/reservations/check')
+      .query({ reservationTypeId, periodKey: 'FY2025' })
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(checkAfter.body).toEqual({
+      exists: true,
+      reservation: expect.objectContaining({
+        id: reservationId,
+        reservationTypeId,
+        periodKey: 'FY2025',
+        serviceDateLocal: '2025-05-01',
+        canceledAt: null,
+      }),
+    });
+
+    // 異なる periodKey では exists: false
+    const checkDifferentPeriod = await request(httpServer)
+      .get('/api/reservations/check')
+      .query({ reservationTypeId, periodKey: 'FY2024' })
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(checkDifferentPeriod.body).toEqual({
+      exists: false,
+    });
+  });
 });
