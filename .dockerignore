@@ -1,0 +1,46 @@
+# .dockerignore
+
+# Node modules (will be installed in container)
+node_modules
+npm-debug.log
+
+# Git
+.git
+.gitignore
+
+# Environment files (provide at runtime)
+.env
+.env.*
+!.env.example
+
+# Documentation
+docs
+*.md
+!README.md
+
+# Tests
+test
+coverage
+.nyc_output
+
+# Development files
+.vscode
+.idea
+
+# Logs
+logs
+*.log
+
+# Build artifacts
+dist
+
+# Temporary files
+.temp
+.tmp
+*.sqlite
+test-*.sqlite
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml

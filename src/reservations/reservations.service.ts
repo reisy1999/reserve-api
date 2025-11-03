@@ -1,90 +1,152 @@
 import {
   ConflictException,
+  ForbiddenException,
+  HttpException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Reservation } from './entities/reservation.entity';
-import { CreateReservationDto } from './dto/create-reservation.dto';
-import { UpdateReservationDto } from './dto/update-reservation.dto';
+import { ReservationSlot } from './entities/reservation-slot.entity';
+import { ReservationType } from '../reservation-type/entities/reservation-type.entity';
+import { Staff } from '../staff/entities/staff.entity';
 import { calculatePeriodKey } from '../utils/date';
 
 @Injectable()
 export class ReservationsService {
   constructor(
     @InjectRepository(Reservation)
-    private readonly repo: Repository<Reservation>,
+    private readonly reservationRepository: Repository<Reservation>,
+    @InjectRepository(ReservationSlot)
+    private readonly slotRepository: Repository<ReservationSlot>,
+    private readonly dataSource: DataSource,
   ) {}
 
-  // 予約作成
-  async create(dto: CreateReservationDto): Promise<Reservation> {
-    const periodKey = calculatePeriodKey(dto.serviceDateLocal);
-    // 一意性のチェック
-    const dup = await this.repo.count({
+  private ensureStaffEligible(staff: Staff): void {
+    if (staff.pinMustChange) {
+      throw new HttpException('PIN change required before reserving.', 428);
+    }
+    if (!staff.emrPatientId || !staff.dateOfBirth || !staff.sexCode) {
+      throw new HttpException('Profile incomplete for reservation.', 428);
+    }
+  }
+
+  private isBookingWindowOpen(slot: ReservationSlot): boolean {
+    const now = new Date();
+    if (slot.status !== 'published') {
+      return false;
+    }
+    const bookingStart = slot.bookingStart ? new Date(slot.bookingStart) : null;
+    const bookingEnd = slot.bookingEnd ? new Date(slot.bookingEnd) : null;
+    if (bookingStart && now < bookingStart) {
+      return false;
+    }
+    if (bookingEnd && now > bookingEnd) {
+      return false;
+    }
+    return true;
+  }
+
+  async createForStaff(staff: Staff, slotId: number): Promise<Reservation> {
+    this.ensureStaffEligible(staff);
+
+    const slot = await this.slotRepository.findOne({
+      where: { id: slotId },
+      relations: ['reservationType'],
+    });
+    if (!slot) {
+      throw new NotFoundException('Reservation slot not found');
+    }
+
+    if (!this.isBookingWindowOpen(slot)) {
+      throw new ForbiddenException('Reservation window closed');
+    }
+
+    const periodKey = calculatePeriodKey(slot.serviceDateLocal);
+
+    const existing = await this.reservationRepository.findOne({
       where: {
-        staffId: dto.staffId as string,
-        reservationTypeId: dto.reservationTypeId,
+        staffId: staff.staffId,
+        reservationTypeId: slot.reservationTypeId,
         periodKey,
       },
     });
-    if (dup > 0) {
-      throw new ConflictException('Already reserved once in this fiscal year,');
+    if (existing) {
+      throw new ConflictException('Already reserved once in this fiscal year.');
     }
 
-    const entity = this.repo.create({ ...dto, periodKey });
-    try {
-      return await this.repo.save(entity);
-    } catch (err: any) {
-      // DBのユニーク制約に引っかかった場合のフォールバック（同時実行など）
-      const msg = String(err?.message ?? '');
-      if (msg.includes('UNIQUE') || msg.includes('SQLITE_CONSTRAINT')) {
-        throw new ConflictException(
-          'Already reserved once in this fiscal year.',
-        );
+    return this.dataSource.transaction(async (manager) => {
+      const slotRepo = manager.getRepository(ReservationSlot);
+      const reservationRepo = manager.getRepository(Reservation);
+
+      const lockedSlot = await slotRepo.findOne({
+        where: { id: slotId },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!lockedSlot) {
+        throw new NotFoundException('Reservation slot not found');
       }
-      throw err;
-    }
-  }
 
-  // 全件取得（デフォルト並び：日付＋開始時間）
-  async findAll(): Promise<Reservation[]> {
-    return await this.repo.find({
-      order: {
-        serviceDateLocal: 'ASC',
-        startMinuteOfDay: 'ASC',
-      },
-    });
-  }
+      if (!this.isBookingWindowOpen(lockedSlot)) {
+        throw new ForbiddenException('Reservation window closed');
+      }
 
-  // 単件取得（存在しなければ404）
-  async findOne(id: number): Promise<Reservation> {
-    const hit = await this.repo.findOneBy({ id });
-    if (!hit) throw new NotFoundException(`Reservation #${id} not found`);
-    return hit;
-  }
+      if (lockedSlot.bookedCount >= lockedSlot.capacity) {
+        throw new ConflictException('Reservation capacity has been reached.');
+      }
 
-  // 更新（部分更新）
-  async update(id: number, dto: UpdateReservationDto): Promise<Reservation> {
-    const hit = await this.findOne(id);
-    const merged = this.repo.merge(hit, dto);
-    return await this.repo.save(merged);
-  }
+      const reservationType = await manager
+        .getRepository(ReservationType)
+        .findOneBy({ id: lockedSlot.reservationTypeId });
+      if (!reservationType) {
+        throw new NotFoundException('Reservation type not found');
+      }
 
-  // 削除（存在しなければ404）
-  async remove(id: number): Promise<void> {
-    const hit = await this.findOne(id);
-    await this.repo.remove(hit);
-  }
+      const reservation = reservationRepo.create({
+        staffUid: staff.staffUid,
+        staffId: staff.staffId,
+        staff,
+        reservationTypeId: reservationType.id,
+        reservationType,
+        slotId: lockedSlot.id,
+        slot: lockedSlot,
+        serviceDateLocal: lockedSlot.serviceDateLocal,
+        startMinuteOfDay: lockedSlot.startMinuteOfDay,
+        durationMinutes: lockedSlot.durationMinutes,
+        periodKey,
+        canceledAt: null,
+      });
 
-  // 職員×年度×種別 検索（年度1回制チェック用）
-  async findByStaffTypePeriod(
-    staffId: string,
-    reservationTypeId: number,
-    periodKey: string,
-  ): Promise<Reservation | null> {
-    return await this.repo.findOne({
-      where: { staffId, reservationTypeId, periodKey },
+      lockedSlot.bookedCount += 1;
+      await slotRepo.save(lockedSlot);
+
+      try {
+        return await reservationRepo.save(reservation);
+      } catch (error: unknown) {
+        let message: string;
+        if (error instanceof Error) {
+          message = error.message;
+        } else if (typeof error === 'string') {
+          message = error;
+        } else {
+          try {
+            message = JSON.stringify(error);
+          } catch {
+            message = 'Unknown reservation error';
+          }
+        }
+        if (message.includes('UQ_reservations_slot_staff')) {
+          throw new ConflictException('Duplicate reservation for this slot.');
+        }
+        if (message.includes('UQ_reservations_staff_type_period')) {
+          throw new ConflictException(
+            'Already reserved once in this fiscal year.',
+          );
+        }
+        throw error;
+      }
     });
   }
 }

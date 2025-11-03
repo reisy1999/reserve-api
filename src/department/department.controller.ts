@@ -16,17 +16,17 @@ export class DepartmentController {
   constructor(private readonly departmentService: DepartmentService) {}
 
   @Post()
-  create(@Body() createDepartmentDto: CreateDepartmentDto) {
+  create(@Body() createDepartmentDto: CreateDepartmentDto): string {
     return this.departmentService.create(createDepartmentDto);
   }
 
   @Get()
-  findAll() {
+  findAll(): string {
     return this.departmentService.findAll();
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id') id: string): string {
     return this.departmentService.findOne(+id);
   }
 
@@ -34,12 +34,12 @@ export class DepartmentController {
   update(
     @Param('id') id: string,
     @Body() updateDepartmentDto: UpdateDepartmentDto,
-  ) {
+  ): string {
     return this.departmentService.update(+id, updateDepartmentDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  remove(@Param('id') id: string): string {
     return this.departmentService.remove(+id);
   }
 }

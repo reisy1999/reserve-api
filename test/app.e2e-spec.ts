@@ -1,25 +1,40 @@
-import { Test, type TestingModule } from '@nestjs/testing';
-import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import type { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
+import {
+  closeTestApp,
+  initTestApp,
+  resetDatabase,
+  seedBaselineData,
+  type TestAppContext,
+} from './e2e/support/test-helpers';
 
-describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+describe('Application bootstrap (e2e)', () => {
+  let ctx: TestAppContext;
 
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
+  beforeAll(async () => {
+    ctx = await initTestApp();
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
+  beforeEach(async () => {
+    await resetDatabase(ctx.dataSource);
+    await seedBaselineData(ctx.dataSource);
+  });
+
+  afterAll(async () => {
+    await closeTestApp(ctx?.app);
+  });
+
+  it('returns seeded reservation types from public endpoint', async () => {
+    const response = await request(ctx.httpServer)
+      .get('/api/reservation-types')
+      .expect(200);
+
+    expect(response.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'Baseline Vaccination',
+          active: true,
+        }),
+      ]),
+    );
   });
 });

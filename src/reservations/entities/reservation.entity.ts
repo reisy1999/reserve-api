@@ -1,25 +1,78 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  Unique,
+  UpdateDateColumn,
+} from 'typeorm';
+import { ReservationType } from '../../reservation-type/entities/reservation-type.entity';
+import { Staff } from '../../staff/entities/staff.entity';
+import { ReservationSlot } from './reservation-slot.entity';
 
 @Entity('reservations')
+@Unique('UQ_reservations_staff_type_period', [
+  'staffId',
+  'reservationTypeId',
+  'periodKey',
+])
+@Unique('UQ_reservations_slot_staff', ['slotId', 'staffId'])
 export class Reservation {
-  @PrimaryGeneratedColumn('increment') // 自動採番
-  id: number;
+  @PrimaryGeneratedColumn('increment')
+  id!: number;
 
-  @Column({ type: 'text' }) // 既方針どおり staffId は string
-  staffId: string;
+  @Column({ type: 'varchar', length: 255, name: 'staff_uid' })
+  @Index('IDX_reservations_staff_uid')
+  staffUid!: string;
 
-  @Column({ type: 'integer' })
-  reservationTypeId: number;
+  @Column({ type: 'varchar', length: 255, name: 'staff_id' })
+  staffId!: string;
 
-  @Column({ type: 'text' }) // 'YYYY-MM-DD' を保存
-  serviceDateLocal: string;
+  @ManyToOne(() => Staff, { nullable: false, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'staff_uid', referencedColumnName: 'staffUid' })
+  staff!: Staff;
 
-  @Column({ type: 'integer' }) // 0–1439 を想定
-  startMinuteOfDay: number;
+  @Column({ type: 'integer', name: 'reservation_type_id' })
+  reservationTypeId!: number;
 
-  @Column({ type: 'integer' }) // 必須（ここが抜けると今回のエラー）
-  durationMinutes: number;
+  @ManyToOne(() => ReservationType, (type) => type.reservations, {
+    nullable: false,
+    onDelete: 'RESTRICT',
+  })
+  @JoinColumn({ name: 'reservation_type_id' })
+  reservationType!: ReservationType;
 
-  @Column({ type: 'text', nullable: true }) // 暫定：nullableで進める
-  periodKey: string | null;
+  @Column({ type: 'integer', name: 'slot_id' })
+  slotId!: number;
+
+  @ManyToOne(() => ReservationSlot, (slot) => slot.reservations, {
+    nullable: false,
+    onDelete: 'RESTRICT',
+  })
+  @JoinColumn({ name: 'slot_id' })
+  slot!: ReservationSlot;
+
+  @Column({ type: 'varchar', length: 255, name: 'service_date_local' })
+  serviceDateLocal!: string;
+
+  @Column({ type: 'integer', name: 'start_minute_of_day' })
+  startMinuteOfDay!: number;
+
+  @Column({ type: 'integer', name: 'duration_minutes' })
+  durationMinutes!: number;
+
+  @Column({ type: 'varchar', length: 255, name: 'period_key' })
+  periodKey!: string;
+
+  @Column({ type: 'datetime', name: 'canceled_at', nullable: true })
+  canceledAt!: Date | null;
+
+  @CreateDateColumn({ type: 'datetime', name: 'created_at' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ type: 'datetime', name: 'updated_at' })
+  updatedAt!: Date;
 }

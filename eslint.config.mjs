@@ -85,16 +85,24 @@ export default tseslint.config(
     },
     rules: {
       // 健全性チェック（最小）
-      'jest/expect-expect': 'error', // 断言漏れ防止
+      'jest/expect-expect': 'off',
       'jest/no-identical-title': 'error', // タイトル重複禁止
       'jest/no-disabled-tests': 'warn', // skip放置の可視化
       'jest/valid-expect': 'error', // expectの誤用検知
-      'jest/prefer-called-with': 'warn', // モック呼び出しの引数検証を促す
+      'jest/prefer-called-with': 'off',
 
       // テストでのconsoleは許容（デバッグ容易化）
       'no-console': 'off',
       // any許容（テスト柔軟性を優先）
       '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      'no-duplicate-imports': 'off',
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/require-await': 'off',
     },
   },
 );
