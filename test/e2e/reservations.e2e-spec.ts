@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { DataSource } from 'typeorm';
+import { ReservationSlotDepartment } from '../../src/reservations/entities/reservation-slot-department.entity';
 import {
   adminHeaders,
   buildCsv,
@@ -80,6 +81,12 @@ describe('予約APIの制約とトランザクションを確認する', () => {
       .expect(201);
 
     const slotId = slotRes.body?.slots?.[0]?.id ?? slotRes.body?.[0]?.id ?? 1;
+    await dataSource.getRepository(ReservationSlotDepartment).save({
+      slotId,
+      departmentId: 'VAC',
+      enabled: true,
+      capacityOverride: null,
+    });
     return { reservationTypeId: reservationTypeId ?? 1, slotId };
   }
 

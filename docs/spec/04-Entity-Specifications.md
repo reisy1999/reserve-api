@@ -60,7 +60,7 @@
 | `created_at` | `datetime`                  | 生成日時。                         |
 | `updated_at` | `datetime`                  | 更新日時。                         |
 
-`staffs` との 1:N リレーションを保持。
+`staffs` および `reservation_slot_departments` との 1:N リレーションを保持。
 
 ---
 
@@ -98,10 +98,28 @@
 | `updated_at`        | `datetime`                        | 更新日時。                                       |
 
 `reservations` による参照がある場合は `onDelete='RESTRICT'`。
+部署ごとの利用制御は `reservation_slot_departments` で管理し、`ReservationSlot` エンティティは `OneToMany` で参照する。
 
 ---
 
-## 4.6 `reservations` テーブル
+## 4.6 `reservation_slot_departments` テーブル
+
+| カラム名            | 型・制約                                       | 説明                                                 |
+| ------------------- | ---------------------------------------------- | ---------------------------------------------------- |
+| `id`                | `int`, PK, AUTO                                | 割当 ID。                                            |
+| `slot_id`           | `int` FK → `reservation_slots.id`              | 対象枠 ID。`onDelete='CASCADE'` で枠削除時に連鎖削除。 |
+| `department_id`     | `varchar(100)` FK → `departments.id`           | 部署 ID。`onDelete='RESTRICT'` で部署削除を保護。     |
+| `enabled`           | `bool`, default true                           | 予約可否。`false` の場合は無効扱い。                  |
+| `capacity_override` | `int`, nullable                                | 部署専用の定員。NULL の場合は枠の共通定員を適用。     |
+| `created_at`        | `datetime`                                     | 生成日時。                                           |
+| `updated_at`        | `datetime`                                     | 更新日時。                                           |
+
+ユニーク制約: `UQ_reservation_slot_departments_slot_department` (`slotId`, `departmentId`)  
+`ReservationSlotDepartment` エンティティは `ManyToOne` で `ReservationSlot` / `Department` を参照する。
+
+---
+
+## 4.7 `reservations` テーブル
 
 | カラム名              | 型・制約                                  | 説明                                                     |
 | --------------------- | ----------------------------------------- | -------------------------------------------------------- |
@@ -126,7 +144,7 @@
 
 ---
 
-## 4.7 `refresh_sessions` テーブル
+## 4.8 `refresh_sessions` テーブル
 
 | カラム名             | 型・制約                                 | 説明                                      |
 | -------------------- | ---------------------------------------- | ----------------------------------------- |
@@ -145,7 +163,7 @@
 
 ---
 
-## 4.8 `reservation_types` 以外の参照マスタ
+## 4.9 `reservation_types` 以外の参照マスタ
 
 現バージョンでは上記以外にマスタテーブルはない。必要に応じ以下を検討する:
 
@@ -156,7 +174,7 @@
 
 ---
 
-## 4.9 E2E シード仕様
+## 4.10 E2E シード仕様
 
 `test/e2e/support/test-helpers.ts` の `seedBaselineData` は以下を冪等に作成する:
 
@@ -168,7 +186,7 @@
 
 ---
 
-## 4.10 将来拡張
+## 4.11 将来拡張
 
 | 追加検討中エンティティ | 目的                                 | 備考                                 |
 | ---------------------- | ------------------------------------ | ------------------------------------ |

@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { ReservationType } from '../../reservation-type/entities/reservation-type.entity';
 import { Reservation } from './reservation.entity';
+import { ReservationSlotDepartment } from './reservation-slot-department.entity';
 
 export type ReservationSlotStatus = 'draft' | 'published' | 'closed';
 
@@ -67,4 +68,10 @@ export class ReservationSlot {
 
   @OneToMany(() => Reservation, (reservation) => reservation.slot)
   reservations!: Reservation[];
+
+  @OneToMany(
+    () => ReservationSlotDepartment,
+    (slotDepartment) => slotDepartment.slot,
+  )
+  slotDepartments!: ReservationSlotDepartment[];
 }

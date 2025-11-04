@@ -10,6 +10,8 @@ erDiagram
     reservation_types ||--o{ reservation_slots : "枠定義"
     reservation_types ||--o{ reservations : "予約種別"
     reservation_slots ||--o{ reservations : "予約"
+    reservation_slots ||--o{ reservation_slot_departments : "部署割当"
+    departments ||--o{ reservation_slot_departments : "枠利用部署"
 
     departments {
         varchar id PK "部署ID"
@@ -68,6 +70,16 @@ erDiagram
         datetime updated_at "更新日時"
     }
 
+    reservation_slot_departments {
+        integer id PK "割当ID"
+        integer slot_id FK "枠ID"
+        varchar department_id FK "部署ID"
+        boolean enabled "利用可否"
+        integer capacity_override "部署別定員"
+        datetime created_at "作成日時"
+        datetime updated_at "更新日時"
+    }
+
     reservations {
         integer id PK "予約ID"
         varchar staff_uid FK "職員UUID"
@@ -107,6 +119,7 @@ erDiagram
 | **staffs** | 職員 | 職員情報・認証情報 |
 | **reservation_types** | 予約種別 | 予防接種・健診等の種類 |
 | **reservation_slots** | 予約枠 | 日時・定員を持つ予約受付枠 |
+| **reservation_slot_departments** | 予約枠部署割当 | 部署ごとの利用可否・定員を管理 |
 | **reservations** | 予約 | 職員の予約記録 |
 | **refresh_sessions** | リフレッシュセッション | JWTリフレッシュトークン管理 |
 
@@ -162,7 +175,20 @@ reservation_slots (1) ----< (N) reservations
 
 ---
 
-### 3.3.5 職員 → リフレッシュセッション (1:N)
+### 3.3.5 予約枠 ↔ 部署 (N:M)
+
+```
+reservation_slots (1) ----< (N) reservation_slot_departments (N) >---- (1) departments
+```
+
+- 部署割当が存在し、かつ `enabled=true` の場合のみ、その部署の職員はスロットを予約可能
+- 外部キー: `reservation_slot_departments.slot_id` → `reservation_slots.id` (`ON DELETE CASCADE`)
+- 外部キー: `reservation_slot_departments.department_id` → `departments.id` (`ON DELETE RESTRICT`)
+- `capacity_override` が NULL の場合は枠の共通定員を採用、値が存在する場合は部署専用の定員を適用
+
+---
+
+### 3.3.6 職員 → リフレッシュセッション (1:N)
 
 ```
 staffs (1) ----< (N) refresh_sessions
@@ -197,7 +223,16 @@ staffs (1) ----< (N) refresh_sessions
 
 ---
 
-### 3.4.3 リフレッシュセッションテーブル
+### 3.4.3 予約枠部署割当テーブル
+
+| インデックス名 | カラム | 種類 | 目的 |
+|--------------|--------|------|------|
+| `UQ_reservation_slot_departments_slot_department` | `(slot_id, department_id)` | UNIQUE | 同一部署の重複割当防止 |
+| `IDX_reservation_slot_departments_department` | `department_id` | INDEX | 部署別の検索 |
+
+---
+
+### 3.4.4 リフレッシュセッションテーブル
 
 | インデックス名 | カラム | 種類 | 目的 |
 |--------------|--------|------|------|
@@ -283,6 +318,14 @@ staffs (1) ----< (N) refresh_sessions
 
 ---
 
+### 3.7.3 予約枠部署割当テーブル
+
+| カラム | デフォルト値 | 理由 |
+|--------|------------|------|
+| `enabled` | true | 割当作成時は利用可能を前提 |
+
+---
+
 ## 3.8 NULL許容
 
 ### 3.8.1 NULL不可のカラム
@@ -306,6 +349,7 @@ staffs (1) ----< (N) refresh_sessions
 | **staffs** | `pin_locked_until` | ロックされていない場合は NULL |
 | **reservations** | `canceled_at` | キャンセルされていない場合は NULL |
 | **refresh_sessions** | `revoked_at` | 失効していない場合は NULL |
+| **reservation_slot_departments** | `capacity_override` | NULL の場合は枠共通定員を使用 |
 
 ---
 

@@ -1,9 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, FindOptionsWhere, ILike } from 'typeorm';
 import { CreateReservationTypeDto } from './dto/create-reservation-type.dto';
 import { UpdateReservationTypeDto } from './dto/update-reservation-type.dto';
 import { ReservationType } from './entities/reservation-type.entity';
+import type {
+  FindReservationTypesAdminDto,
+  PaginatedReservationTypesResponse,
+  ReservationTypeAdminResponse,
+} from './dto/find-reservation-types-admin.dto';
+import { mapToAdminResponse } from './dto/find-reservation-types-admin.dto';
 
 @Injectable()
 export class ReservationTypeService {
@@ -22,7 +28,64 @@ export class ReservationTypeService {
   }
 
   findAll(): Promise<ReservationType[]> {
-    return this.repository.find();
+    // Public API: return only active reservation types
+    return this.repository.find({ where: { active: true } });
+  }
+
+  async findAllForAdmin(
+    query: FindReservationTypesAdminDto,
+  ): Promise<PaginatedReservationTypesResponse> {
+    const {
+      limit = 50,
+      page = 1,
+      name,
+      active,
+      sort = 'id',
+      order = 'asc',
+    } = query;
+
+    const where: FindOptionsWhere<ReservationType> = {};
+
+    if (name !== undefined) {
+      where.name = ILike(`%${name.trim()}%`);
+    }
+
+    if (active !== undefined) {
+      where.active = active;
+    }
+
+    // Get total count
+    const total = await this.repository.count({ where });
+
+    // Build order object with stable tie-break
+    const orderObj: any = {};
+    orderObj[sort] = order.toUpperCase();
+    orderObj['id'] = 'ASC'; // Always add id as secondary sort for stability
+
+    // Get paginated results
+    const reservationTypes = await this.repository.find({
+      where,
+      order: orderObj,
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return {
+      data: reservationTypes.map(mapToAdminResponse),
+      meta: {
+        total,
+        page,
+        limit,
+      },
+    };
+  }
+
+  async findOneForAdmin(id: number): Promise<ReservationTypeAdminResponse> {
+    const entity = await this.repository.findOne({ where: { id } });
+    if (!entity) {
+      throw new NotFoundException('Reservation type not found');
+    }
+    return mapToAdminResponse(entity);
   }
 
   async findOne(id: number): Promise<ReservationType> {

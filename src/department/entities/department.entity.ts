@@ -7,6 +7,7 @@ import {
   CreateDateColumn,
 } from 'typeorm';
 import { Staff } from '../../staff/entities/staff.entity';
+import { ReservationSlotDepartment } from '../../reservations/entities/reservation-slot-department.entity';
 
 @Entity('departments')
 export class Department {
@@ -27,4 +28,10 @@ export class Department {
 
   @OneToMany(() => Staff, (staff) => staff.department)
   staffs!: Staff[];
+
+  @OneToMany(
+    () => ReservationSlotDepartment,
+    (slotDepartment) => slotDepartment.department,
+  )
+  slotDepartments!: ReservationSlotDepartment[];
 }

@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { DataSource } from 'typeorm';
+import { ReservationSlotDepartment } from '../../src/reservations/entities/reservation-slot-department.entity';
 import {
   adminHeaders,
   buildCsv,
@@ -66,7 +67,14 @@ describe('二段階登録と本人完了フローを検証する', () => {
         slots: [{ ...baseSlot, ...overrides }],
       })
       .expect(201);
-    return res.body?.slots?.[0]?.id ?? res.body?.[0]?.id ?? 1;
+    const slotId = res.body?.slots?.[0]?.id ?? res.body?.[0]?.id ?? 1;
+    await dataSource.getRepository(ReservationSlotDepartment).save({
+      slotId,
+      departmentId: 'IM',
+      enabled: true,
+      capacityOverride: null,
+    });
+    return slotId;
   }
 
   async function importStaff(

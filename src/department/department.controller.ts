@@ -1,45 +1,23 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-} from '@nestjs/common';
-import { DepartmentService } from './department.service';
-import { CreateDepartmentDto } from './dto/create-department.dto';
-import { UpdateDepartmentDto } from './dto/update-department.dto';
+import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
+import { DepartmentService, type DepartmentSummary } from './department.service';
 
-@Controller('department')
+@Controller('departments')
 export class DepartmentController {
   constructor(private readonly departmentService: DepartmentService) {}
 
-  @Post()
-  create(@Body() createDepartmentDto: CreateDepartmentDto): string {
-    return this.departmentService.create(createDepartmentDto);
-  }
-
   @Get()
-  findAll(): string {
-    return this.departmentService.findAll();
-  }
+  async findAll(
+    @Query('active') active?: string,
+  ): Promise<DepartmentSummary[]> {
+    if (active === undefined || active === 'true') {
+      return this.departmentService.findAllByActive(true);
+    }
+    if (active === 'false') {
+      return this.departmentService.findAllByActive(false);
+    }
 
-  @Get(':id')
-  findOne(@Param('id') id: string): string {
-    return this.departmentService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body() updateDepartmentDto: UpdateDepartmentDto,
-  ): string {
-    return this.departmentService.update(+id, updateDepartmentDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string): string {
-    return this.departmentService.remove(+id);
+    throw new BadRequestException(
+      "Query parameter 'active' must be 'true' or 'false' when provided.",
+    );
   }
 }

@@ -6,12 +6,19 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, IsNull, Repository } from 'typeorm';
+import { DataSource, IsNull, Repository, type FindOneOptions } from 'typeorm';
 import { Reservation } from './entities/reservation.entity';
 import { ReservationSlot } from './entities/reservation-slot.entity';
+import { ReservationSlotDepartment } from './entities/reservation-slot-department.entity';
 import { ReservationType } from '../reservation-type/entities/reservation-type.entity';
 import { Staff } from '../staff/entities/staff.entity';
+import { Department } from '../department/entities/department.entity';
 import { calculatePeriodKey } from '../utils/date';
+import type {
+  LinkDepartmentDto,
+  UpdateSlotDepartmentDto,
+  SlotDepartmentResponse,
+} from './dto/slot-department.dto';
 
 @Injectable()
 export class ReservationsService {
@@ -20,6 +27,10 @@ export class ReservationsService {
     private readonly reservationRepository: Repository<Reservation>,
     @InjectRepository(ReservationSlot)
     private readonly slotRepository: Repository<ReservationSlot>,
+    @InjectRepository(ReservationSlotDepartment)
+    private readonly slotDepartmentRepository: Repository<ReservationSlotDepartment>,
+    @InjectRepository(Department)
+    private readonly departmentRepository: Repository<Department>,
     @InjectRepository(Staff)
     private readonly staffRepository: Repository<Staff>,
     private readonly dataSource: DataSource,
@@ -82,10 +93,14 @@ export class ReservationsService {
       const slotRepo = manager.getRepository(ReservationSlot);
       const reservationRepo = manager.getRepository(Reservation);
 
-      const lockedSlot = await slotRepo.findOne({
+      const supportsPessimisticLock = this.dataSource.options.type !== 'sqlite';
+      const slotFindOptions: FindOneOptions<ReservationSlot> = {
         where: { id: slotId },
-        lock: { mode: 'pessimistic_write' },
-      });
+      };
+      if (supportsPessimisticLock) {
+        slotFindOptions.lock = { mode: 'pessimistic_write' };
+      }
+      const lockedSlot = await slotRepo.findOne(slotFindOptions);
 
       if (!lockedSlot) {
         throw new NotFoundException('Reservation slot not found');
@@ -173,5 +188,102 @@ export class ReservationsService {
       },
       relations: ['reservationType', 'slot'],
     });
+  }
+
+  // Slot-Department CRUD operations
+
+  async linkDepartmentToSlot(
+    slotId: number,
+    dto: LinkDepartmentDto,
+  ): Promise<SlotDepartmentResponse> {
+    // Verify slot exists
+    const slot = await this.slotRepository.findOne({ where: { id: slotId } });
+    if (!slot) {
+      throw new NotFoundException(`Slot with id ${slotId} not found`);
+    }
+
+    // Verify department exists
+    const department = await this.departmentRepository.findOne({
+      where: { id: dto.departmentId },
+    });
+    if (!department) {
+      throw new NotFoundException(
+        `Department with id ${dto.departmentId} not found`,
+      );
+    }
+
+    // Check for duplicate
+    const existing = await this.slotDepartmentRepository.findOne({
+      where: { slotId, departmentId: dto.departmentId },
+    });
+    if (existing) {
+      throw new ConflictException(
+        `Department ${dto.departmentId} is already linked to slot ${slotId}`,
+      );
+    }
+
+    // Create link
+    const link = this.slotDepartmentRepository.create({
+      slotId,
+      departmentId: dto.departmentId,
+      enabled: dto.enabled !== undefined ? dto.enabled : true,
+      capacityOverride: dto.capacityOverride !== undefined ? dto.capacityOverride : null,
+    });
+
+    const saved = await this.slotDepartmentRepository.save(link);
+
+    return {
+      id: saved.id,
+      slotId: saved.slotId,
+      departmentId: saved.departmentId,
+      enabled: saved.enabled,
+      capacityOverride: saved.capacityOverride,
+      createdAt: saved.createdAt,
+      updatedAt: saved.updatedAt,
+    };
+  }
+
+  async updateSlotDepartment(
+    slotId: number,
+    departmentId: string,
+    dto: UpdateSlotDepartmentDto,
+  ): Promise<SlotDepartmentResponse> {
+    const link = await this.slotDepartmentRepository.findOne({
+      where: { slotId, departmentId },
+    });
+
+    if (!link) {
+      throw new NotFoundException(
+        `Link between slot ${slotId} and department ${departmentId} not found`,
+      );
+    }
+
+    // Update fields
+    if (dto.enabled !== undefined) {
+      link.enabled = dto.enabled;
+    }
+    if (dto.capacityOverride !== undefined) {
+      link.capacityOverride = dto.capacityOverride;
+    }
+
+    const saved = await this.slotDepartmentRepository.save(link);
+
+    return {
+      id: saved.id,
+      slotId: saved.slotId,
+      departmentId: saved.departmentId,
+      enabled: saved.enabled,
+      capacityOverride: saved.capacityOverride,
+      createdAt: saved.createdAt,
+      updatedAt: saved.updatedAt,
+    };
+  }
+
+  async deleteSlotDepartment(
+    slotId: number,
+    departmentId: string,
+  ): Promise<void> {
+    // Idempotent delete - don't throw error if not found
+    await this.slotDepartmentRepository.delete({ slotId, departmentId });
   }
 }

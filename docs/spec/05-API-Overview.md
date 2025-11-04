@@ -191,19 +191,42 @@ Idempotency-Key: <unique_key>
 
 ### 5.6.4 管理者（詳細: [09-Admin-API.md](./09-Admin-API.md)）
 
-| メソッド | パス                           | 認証  | 説明            |
-| -------- | ------------------------------ | ----- | --------------- |
-| POST     | `/api/admin/staffs/import`     | Admin | 職員CSV一括登録 |
-| POST     | `/api/admin/reservation-types` | Admin | 予約種別作成    |
-| POST     | `/api/admin/slots/bulk`        | Admin | 予約枠一括作成  |
+#### スタッフ管理
+| メソッド | パス                           | 認証  | 説明            | 実装状況 |
+| -------- | ------------------------------ | ----- | --------------- | -------- |
+| POST     | `/api/admin/staffs/import`     | Admin | 職員CSV一括登録 | ✅       |
+
+#### 部署管理
+| メソッド | パス                           | 認証  | 説明            | 実装状況 |
+| -------- | ------------------------------ | ----- | --------------- | -------- |
+| GET      | `/api/admin/departments`       | Admin | 部署一覧取得（ページネーション） | ✅ |
+| GET      | `/api/admin/departments/:id`   | Admin | 部署詳細取得    | ✅       |
+
+#### 予約種別管理
+| メソッド | パス                                | 認証  | 説明            | 実装状況 |
+| -------- | ----------------------------------- | ----- | --------------- | -------- |
+| POST     | `/api/admin/reservation-types`      | Admin | 予約種別作成    | ✅       |
+| GET      | `/api/admin/reservation-types`      | Admin | 予約種別一覧取得（ページネーション） | ✅ |
+| GET      | `/api/admin/reservation-types/:id`  | Admin | 予約種別詳細取得 | ✅       |
+| PATCH    | `/api/admin/reservation-types/:id`  | Admin | 予約種別更新    | ✅       |
+| DELETE   | `/api/admin/reservation-types/:id`  | Admin | 予約種別削除    | ✅       |
+
+#### 予約枠管理
+| メソッド | パス                                         | 認証  | 説明            | 実装状況 |
+| -------- | -------------------------------------------- | ----- | --------------- | -------- |
+| POST     | `/api/admin/slots/bulk`                      | Admin | 予約枠一括作成  | ✅       |
+| POST     | `/api/admin/slots/:id/departments`           | Admin | 枠に部署を割り当て | ✅     |
+| PATCH    | `/api/admin/slots/:slotId/departments/:deptId` | Admin | 部署割り当て更新 | ✅    |
+| DELETE   | `/api/admin/slots/:slotId/departments/:deptId` | Admin | 部署割り当て削除 | ✅    |
 
 ---
 
 ### 5.6.5 公開エンドポイント
 
-| メソッド | パス                     | 認証 | 説明         |
-| -------- | ------------------------ | ---- | ------------ |
-| GET      | `/api/reservation-types` | 不要 | 予約種別一覧 |
+| メソッド | パス                     | 認証 | 説明         | 実装状況 |
+| -------- | ------------------------ | ---- | ------------ | -------- |
+| GET      | `/api/departments`       | 不要 | 部署一覧（active-only） | ✅ |
+| GET      | `/api/reservation-types` | 不要 | 予約種別一覧（active-only） | ✅ |
 
 ---
 
@@ -421,5 +444,8 @@ GET /api/reservation-types
 
 ---
 
-**最終更新**: 2025-11-03
-**バージョン**: 1.0.0
+**最終更新**: 2025-11-04
+**バージョン**: 1.1.0
+**変更履歴**:
+- 2025-11-04: 管理者API（部署・予約種別・スロット管理）エンドポイント追加
+- 2025-11-03: 初版作成

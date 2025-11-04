@@ -3,10 +3,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import bodyParser from 'body-parser';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { ReservationsModule } from './reservations/reservations.module';
-import { StaffModule } from './staff/staff.module';
 import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
+import { ReservationsModule } from './reservations/reservations.module';
+import { StaffModule } from './staff/staff.module';
+import { DepartmentModule } from './department/department.module';
 import { SecurityModule } from './security/security.module';
 import { ReservationTypeModule } from './reservation-type/reservation-type.module';
 
@@ -51,6 +52,7 @@ function buildTypeOrmConfig(): Parameters<typeof TypeOrmModule.forRoot>[0] {
     SecurityModule,
     TypeOrmModule.forRoot(buildTypeOrmConfig()),
     AuthModule,
+    DepartmentModule,
     StaffModule,
     ReservationsModule,
     AdminModule,

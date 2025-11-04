@@ -2,10 +2,14 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ReservationsService } from './reservations.service';
 import { ReservationsController } from './reservations.controller';
+import { AdminSlotsController } from './admin-slots.controller';
 import { Reservation } from './entities/reservation.entity';
 import { ReservationSlot } from './entities/reservation-slot.entity';
 import { ReservationType } from '../reservation-type/entities/reservation-type.entity';
 import { Staff } from '../staff/entities/staff.entity';
+import { ReservationSlotDepartment } from './entities/reservation-slot-department.entity';
+import { Department } from '../department/entities/department.entity';
+import { AdminTokenGuard } from '../common/guards/admin-token.guard';
 
 @Module({
   imports: [
@@ -14,10 +18,12 @@ import { Staff } from '../staff/entities/staff.entity';
       ReservationSlot,
       ReservationType,
       Staff,
+      ReservationSlotDepartment,
+      Department,
     ]),
   ],
-  controllers: [ReservationsController],
-  providers: [ReservationsService],
+  controllers: [ReservationsController, AdminSlotsController],
+  providers: [ReservationsService, AdminTokenGuard],
   exports: [ReservationsService],
 })
 export class ReservationsModule {}

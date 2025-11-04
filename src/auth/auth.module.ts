@@ -17,11 +17,13 @@ import { SecurityModule } from '../security/security.module';
   imports: [
     TypeOrmModule.forFeature([Staff, RefreshSession]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
-    JwtModule.register({
-      secret: process.env.JWT_SECRET ?? 'change-me',
-      signOptions: {
-        expiresIn: (process.env.JWT_EXPIRES_IN ?? '900s') as StringValue,
-      },
+    JwtModule.registerAsync({
+      useFactory: () => ({
+        secret: process.env.JWT_SECRET ?? 'change-me',
+        signOptions: {
+          expiresIn: (process.env.JWT_EXPIRES_IN ?? '900s') as StringValue,
+        },
+      }),
     }),
     forwardRef(() => StaffModule),
     SecurityModule,

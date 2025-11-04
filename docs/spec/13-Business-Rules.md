@@ -322,7 +322,7 @@ async updateProfile(staff: Staff, payload: UpdateProfileDto): Promise<Staff> {
 
 ### 13.7.1 外部キー制約
 
-すべてのリレーションは `ON DELETE RESTRICT` で保護。
+原則として `ON DELETE RESTRICT` を採用し、例外として枠削除時は割当テーブルが連鎖削除される。
 
 | テーブル | 参照先 | 動作 |
 |---------|--------|------|
@@ -330,6 +330,8 @@ async updateProfile(staff: Staff, payload: UpdateProfileDto): Promise<Staff> {
 | **reservations** | staffs | 職員削除時、予約がある場合は拒否 |
 | **reservations** | reservation_slots | 枠削除時、予約がある場合は拒否 |
 | **reservations** | reservation_types | 種別削除時、予約がある場合は拒否 |
+| **reservation_slot_departments** | reservation_slots | 枠削除時に割当も削除 (CASCADE) |
+| **reservation_slot_departments** | departments | 割当が存在する部署は削除不可 (RESTRICT) |
 
 ---
 
@@ -341,8 +343,15 @@ async updateProfile(staff: Staff, payload: UpdateProfileDto): Promise<Staff> {
 | **staffs** | `emr_patient_id` | EMR患者ID重複不可（null許可） |
 | **reservations** | `(staff_id, reservation_type_id, period_key)` | 年度1回制限 |
 | **reservations** | `(slot_id, staff_id)` | 同一枠重複不可 |
+| **reservation_slot_departments** | `(slot_id, department_id)` | 同一枠内の部署割当は一意 |
 
 ---
+
+### 13.7.3 予約枠部署割当
+
+- 部署がスロットを利用するには、該当する `reservation_slot_departments` レコードが存在し、`enabled=true` であることが必須。
+- `capacity_override` が設定されている場合、その部署の予約上限は枠の `capacity` ではなく上書き値で判定する。
+- 割当レコードが存在しない部署は予約不可となる（公開済みでも非表示）。
 
 ## 13.8 年度切り替え
 

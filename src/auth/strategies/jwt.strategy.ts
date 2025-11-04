@@ -39,7 +39,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       secretOrKey: process.env.JWT_SECRET ?? 'change-me',
     };
     // passport-jwt strategy constructor is provided by JS runtime; suppress unsafe-call lint here.
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+
     super(strategyOptions);
   }
 

@@ -5,7 +5,7 @@ import { ReservationsService } from './reservations.service';
 import { Reservation } from './entities/reservation.entity';
 import { ReservationSlot } from './entities/reservation-slot.entity';
 import { ReservationType } from '../reservation-type/entities/reservation-type.entity';
-import type { Staff } from '../staff/entities/staff.entity';
+import { Staff } from '../staff/entities/staff.entity';
 import type { Department } from '../department/entities/department.entity';
 import { calculatePeriodKey } from '../utils/date';
 
@@ -71,7 +71,7 @@ describe('ReservationsService', () => {
   let service: ReservationsService;
   let reservationRepository: ReturnType<typeof createRepositoryMock>;
   let slotRepository: ReturnType<typeof createRepositoryMock>;
-  let dataSource: { transaction: jest.Mock };
+  let dataSource: { transaction: jest.Mock; options: { type: string } };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -87,9 +87,14 @@ describe('ReservationsService', () => {
           useValue: createRepositoryMock(),
         },
         {
+          provide: getRepositoryToken(Staff),
+          useValue: createRepositoryMock(),
+        },
+        {
           provide: DataSource,
           useValue: {
             transaction: jest.fn(),
+            options: { type: 'postgres' },
           },
         },
       ],
