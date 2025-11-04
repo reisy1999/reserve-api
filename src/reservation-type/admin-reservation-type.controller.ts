@@ -61,18 +61,24 @@ export class AdminReservationTypeController {
 
     // Parse active
     const active =
-      activeStr === 'true'
-        ? true
-        : activeStr === 'false'
-          ? false
-          : undefined;
+      activeStr === 'true' ? true : activeStr === 'false' ? false : undefined;
 
     // Validate sort and order
-    const validSorts = ['id', 'name', 'updatedAt'];
-    const sortValue = sort && validSorts.includes(sort) ? sort : 'id';
+    const validSorts: Array<'id' | 'name' | 'updatedAt'> = [
+      'id',
+      'name',
+      'updatedAt',
+    ];
+    const sortValue: 'id' | 'name' | 'updatedAt' =
+      sort && validSorts.includes(sort as 'id' | 'name' | 'updatedAt')
+        ? (sort as 'id' | 'name' | 'updatedAt')
+        : 'id';
 
-    const validOrders = ['asc', 'desc'];
-    const orderValue = order && validOrders.includes(order) ? order : 'asc';
+    const validOrders: Array<'asc' | 'desc'> = ['asc', 'desc'];
+    const orderValue: 'asc' | 'desc' =
+      order && validOrders.includes(order as 'asc' | 'desc')
+        ? (order as 'asc' | 'desc')
+        : 'asc';
 
     // Build query DTO
     const query: FindReservationTypesAdminDto = {
@@ -80,8 +86,8 @@ export class AdminReservationTypeController {
       page,
       name,
       active,
-      sort: sortValue as any,
-      order: orderValue as any,
+      sort: sortValue,
+      order: orderValue,
     };
 
     return this.reservationTypeService.findAllForAdmin(query);

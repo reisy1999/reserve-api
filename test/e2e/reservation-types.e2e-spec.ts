@@ -63,7 +63,9 @@ describe('ReservationTypes API (e2e)', () => {
     });
 
     it('GET /api/admin/reservation-types/:id returns 401 without admin token', async () => {
-      await request(httpServer).get('/api/admin/reservation-types/1').expect(401);
+      await request(httpServer)
+        .get('/api/admin/reservation-types/1')
+        .expect(401);
     });
 
     it('POST /api/admin/reservation-types returns 401 without admin token', async () => {

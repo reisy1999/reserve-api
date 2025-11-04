@@ -1,5 +1,8 @@
 import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
-import { DepartmentService, type DepartmentSummary } from './department.service';
+import {
+  DepartmentService,
+  type DepartmentSummary,
+} from './department.service';
 
 @Controller('departments')
 export class DepartmentController {

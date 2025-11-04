@@ -39,6 +39,7 @@ describe('DepartmentService', () => {
 
     const result = await service.findAllByActive(true);
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(departmentRepository.find).toHaveBeenCalledWith({
       where: { active: true },
       order: { name: 'ASC' },

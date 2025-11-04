@@ -1,13 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { Repository, FindOptionsWhere } from 'typeorm';
+import {
+  type Repository,
+  type FindOptionsWhere,
+  type FindOptionsOrder,
+  ILike,
+} from 'typeorm';
 import { Department } from './entities/department.entity';
 import type {
   FindDepartmentsAdminDto,
   PaginatedDepartmentsResponse,
   DepartmentAdminResponse,
 } from './dto/find-departments-admin.dto';
-import { ILike } from 'typeorm';
 
 export interface DepartmentSummary {
   id: string;
@@ -60,9 +64,10 @@ export class DepartmentService {
     const total = await this.departmentRepository.count({ where });
 
     // Build order object with stable tie-break
-    const orderObj: any = {};
-    orderObj[sort] = order.toUpperCase();
-    orderObj['id'] = 'ASC'; // Always add id as secondary sort for stability
+    const orderObj: FindOptionsOrder<Department> = {
+      [sort]: order.toUpperCase() as 'ASC' | 'DESC',
+      id: 'ASC',
+    };
 
     // Get paginated results
     const departments = await this.departmentRepository.find({

@@ -1,15 +1,20 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere, ILike } from 'typeorm';
+import {
+  type Repository,
+  type FindOptionsWhere,
+  type FindOptionsOrder,
+  ILike,
+} from 'typeorm';
 import { CreateReservationTypeDto } from './dto/create-reservation-type.dto';
 import { UpdateReservationTypeDto } from './dto/update-reservation-type.dto';
 import { ReservationType } from './entities/reservation-type.entity';
-import type {
-  FindReservationTypesAdminDto,
-  PaginatedReservationTypesResponse,
-  ReservationTypeAdminResponse,
+import {
+  type FindReservationTypesAdminDto,
+  type PaginatedReservationTypesResponse,
+  type ReservationTypeAdminResponse,
+  mapToAdminResponse,
 } from './dto/find-reservation-types-admin.dto';
-import { mapToAdminResponse } from './dto/find-reservation-types-admin.dto';
 
 @Injectable()
 export class ReservationTypeService {
@@ -58,9 +63,10 @@ export class ReservationTypeService {
     const total = await this.repository.count({ where });
 
     // Build order object with stable tie-break
-    const orderObj: any = {};
-    orderObj[sort] = order.toUpperCase();
-    orderObj['id'] = 'ASC'; // Always add id as secondary sort for stability
+    const orderObj: FindOptionsOrder<ReservationType> = {
+      [sort]: order.toUpperCase() as 'ASC' | 'DESC',
+      id: 'ASC',
+    };
 
     // Get paginated results
     const reservationTypes = await this.repository.find({

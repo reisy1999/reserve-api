@@ -4,9 +4,10 @@ import { DataSource } from 'typeorm';
 import { ReservationsService } from './reservations.service';
 import { Reservation } from './entities/reservation.entity';
 import { ReservationSlot } from './entities/reservation-slot.entity';
+import { ReservationSlotDepartment } from './entities/reservation-slot-department.entity';
 import { ReservationType } from '../reservation-type/entities/reservation-type.entity';
 import { Staff } from '../staff/entities/staff.entity';
-import type { Department } from '../department/entities/department.entity';
+import { Department } from '../department/entities/department.entity';
 import { calculatePeriodKey } from '../utils/date';
 
 const createRepositoryMock = () => ({
@@ -84,6 +85,14 @@ describe('ReservationsService', () => {
         },
         {
           provide: getRepositoryToken(ReservationSlot),
+          useValue: createRepositoryMock(),
+        },
+        {
+          provide: getRepositoryToken(ReservationSlotDepartment),
+          useValue: createRepositoryMock(),
+        },
+        {
+          provide: getRepositoryToken(Department),
           useValue: createRepositoryMock(),
         },
         {

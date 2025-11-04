@@ -144,7 +144,6 @@ describe('Slot-Department CRUD API (e2e)', () => {
   describe('PATCH /api/admin/slots/:slotId/departments/:deptId', () => {
     let slotId: number;
     let departmentId: string;
-    let linkId: number;
 
     beforeEach(async () => {
       // Create department
@@ -176,13 +175,12 @@ describe('Slot-Department CRUD API (e2e)', () => {
 
       // Create link
       const linkRepo = dataSource.getRepository(ReservationSlotDepartment);
-      const link = await linkRepo.save({
+      await linkRepo.save({
         slotId,
         departmentId,
         enabled: true,
         capacityOverride: null,
       });
-      linkId = link.id;
     });
 
     it('updates enabled status', async () => {

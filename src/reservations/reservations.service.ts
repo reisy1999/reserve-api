@@ -227,7 +227,8 @@ export class ReservationsService {
       slotId,
       departmentId: dto.departmentId,
       enabled: dto.enabled !== undefined ? dto.enabled : true,
-      capacityOverride: dto.capacityOverride !== undefined ? dto.capacityOverride : null,
+      capacityOverride:
+        dto.capacityOverride !== undefined ? dto.capacityOverride : null,
     });
 
     const saved = await this.slotDepartmentRepository.save(link);

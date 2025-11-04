@@ -28,15 +28,18 @@ export class FindDepartmentsAdminDto {
   name?: string;
 
   @IsOptional()
-  @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    if (typeof value === 'boolean') return value;
-    // If value is undefined or null, return undefined
-    if (value === undefined || value === null) return undefined;
-    // For any other value, keep it for validation to catch
-    return value;
-  }, { toClassOnly: true })
+  @Transform(
+    ({ value }: { value: unknown }): boolean | undefined => {
+      if (value === 'true') return true;
+      if (value === 'false') return false;
+      if (typeof value === 'boolean') return value;
+      // If value is undefined or null, return undefined
+      if (value === undefined || value === null) return undefined;
+      // For any other value, keep it for validation to catch
+      return value as boolean;
+    },
+    { toClassOnly: true },
+  )
   @IsBoolean()
   active?: boolean;
 
