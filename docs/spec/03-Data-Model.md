@@ -27,6 +27,8 @@ erDiagram
         varchar emr_patient_id UK "EMR患者ID"
         varchar family_name "姓"
         varchar given_name "名"
+        varchar family_name_kana "姓（カナ）"
+        varchar given_name_kana "名（カナ）"
         varchar job_title "職種"
         varchar department_id FK "部署ID"
         varchar date_of_birth "生年月日"
@@ -334,7 +336,7 @@ staffs (1) ----< (N) refresh_sessions
 
 | テーブル | カラム | 理由 |
 |---------|--------|------|
-| **staffs** | `staff_id`, `family_name`, `pin_hash` | 必須情報 |
+| **staffs** | `staff_id`, `family_name`, `given_name`, `pin_hash` | 必須情報 |
 | **reservations** | `staff_uid`, `slot_id`, `period_key` | 予約成立の必須条件 |
 
 ---
@@ -346,7 +348,9 @@ staffs (1) ----< (N) refresh_sessions
 | テーブル | カラム | 理由 |
 |---------|--------|------|
 | **staffs** | `emr_patient_id` | 初回登録時は未設定 |
+| **staffs** | `family_name_kana`, `given_name_kana` | カナ情報は任意入力 |
 | **staffs** | `pin_locked_until` | ロックされていない場合は NULL |
+| **staffs** | `last_login_at` | まだログインしていない場合は NULL |
 | **reservations** | `canceled_at` | キャンセルされていない場合は NULL |
 | **refresh_sessions** | `revoked_at` | 失効していない場合は NULL |
 | **reservation_slot_departments** | `capacity_override` | NULL の場合は枠共通定員を使用 |

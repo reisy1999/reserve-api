@@ -312,7 +312,7 @@ sequenceDiagram
         Refresh-->>Client: 401 Unauthorized<br/>"Refresh token revoked."
     end
 
-    Refresh->>Refresh: argon2.verify(old-token, hash)
+    Refresh->>Refresh: argon2.verify(hash, old-token + pepper)
 
     alt ハッシュ不一致（トークン再利用検知）
         Refresh->>DB: 全セッション失効 + status = 'suspended'
@@ -409,7 +409,12 @@ const pinHash = await argon2.hash(pin + pepper, {
 });
 
 // 検証
-const isValid = await argon2.verify(pin + pepper, pinHash);
+const isValid = await argon2.verify(pinHash, pin + pepper, {
+  type: argon2.argon2id,
+  timeCost: 3,
+  memoryCost: 64 * 1024,
+  parallelism: 1
+});
 ```
 
 **パラメータ**:
@@ -418,6 +423,8 @@ const isValid = await argon2.verify(pin + pepper, pinHash);
 - **memoryCost**: 64MB
 - **parallelism**: 1（並列度）
 - **pepper**: 環境変数 `SECURITY_PIN_PEPPER`（base64エンコード）
+
+検証時も同一オプションを第三引数で指定し、ハッシュ生成と同じ条件を保つ。
 
 **ペッパーの役割**:
 - DB漏洩時でもオフライン攻撃を防止

@@ -275,7 +275,7 @@ sequenceDiagram
         API-->>Client: 428 Precondition Required<br/>"PIN re-authentication required"
     end
 
-    API->>API: argon2.verify(currentPin, pinHash)
+    API->>API: argon2.verify(pinHash, currentPin + pepper)
 
     alt PIN不一致
         API-->>Client: 428 Precondition Required<br/>"PIN mismatch"
@@ -416,7 +416,7 @@ sequenceDiagram
     participant DB as MySQL
 
     Client->>API: POST { currentPin, newPin }
-    API->>API: argon2.verify(currentPin, pinHash)
+    API->>API: argon2.verify(pinHash, currentPin + pepper)
 
     alt PIN不一致
         API-->>Client: 428 Precondition Required<br/>"Current PIN is invalid"

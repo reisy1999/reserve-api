@@ -151,7 +151,7 @@ sequenceDiagram
         API-->>Client: 423 Locked
     end
 
-    API->>API: argon2.verify(pin + pepper, pinHash)
+    API->>API: argon2.verify(pinHash, pin + pepper)
 
     alt PIN不一致
         API->>DB: UPDATE staffs<br/>SET pin_retry_count += 1
@@ -330,7 +330,7 @@ sequenceDiagram
         API-->>Client: 401 Unauthorized<br/>{ message: "Refresh token revoked." }
     end
 
-    API->>API: argon2.verify(refreshToken, hash)
+    API->>API: argon2.verify(hash, refreshToken + pepper)
 
     alt ハッシュ不一致（トークン再利用）
         API->>DB: 全セッション失効 + status = 'suspended'
@@ -405,7 +405,12 @@ const pinHash = await argon2.hash(pin + pepper, {
 });
 
 // 検証
-const isValid = await argon2.verify(pin + pepper, pinHash);
+const isValid = await argon2.verify(pinHash, pin + pepper, {
+  type: argon2.argon2id,
+  timeCost: 3,
+  memoryCost: 64 * 1024,
+  parallelism: 1
+});
 ```
 
 **パラメータ**:
@@ -413,6 +418,8 @@ const isValid = await argon2.verify(pin + pepper, pinHash);
 - **timeCost**: 3（計算コスト）
 - **memoryCost**: 64MB
 - **parallelism**: 1（並列度）
+
+検証時も同一オプションを第三引数で指定し、ハッシュ生成と同じ条件を保つ。
 
 ---
 
