@@ -1,0 +1,16 @@
+# 開発用Dockerfile for reserve-api
+FROM node:20-alpine
+
+WORKDIR /app
+
+# 依存関係をインストール
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# ソースコードをコピー
+COPY . .
+
+EXPOSE 3000
+
+# 開発サーバー起動
+CMD ["npm", "run", "start:dev"]

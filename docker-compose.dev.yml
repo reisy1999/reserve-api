@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: reserve-api-mysql-dev
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-reserve_db}
+      MYSQL_USER: ${MYSQL_USER:-reserve_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-reserve_password}
+      TZ: Asia/Tokyo
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data_dev:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+      - --sql-mode=STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root_password}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - reserve-api-network
+
+  # API Service (NestJS)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: reserve-api-dev
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      # Database connection
+      - DB_TYPE=mysql
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USERNAME=${MYSQL_USER:-reserve_user}
+      - DB_PASSWORD=${MYSQL_PASSWORD:-reserve_password}
+      - DB_DATABASE=${MYSQL_DATABASE:-reserve_db}
+      # JWT settings
+      - JWT_SECRET=${JWT_SECRET:-your-jwt-secret-key-change-in-production}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-your-jwt-refresh-secret-key}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-15m}
+      - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN:-7d}
+      # Admin settings
+      - ADMIN_TOKEN=${ADMIN_TOKEN:-your-admin-token-change-in-production}
+      # CORS settings (localhostからのアクセスを許可)
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./src:/app/src
+      - /app/node_modules
+      - /app/dist
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - reserve-api-network
+    command: npm run start:dev
+
+  # Optional: phpMyAdmin for database management
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: reserve-api-phpmyadmin-dev
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
+      UPLOAD_LIMIT: 50M
+    ports:
+      - "${PHPMYADMIN_PORT:-8080}:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - reserve-api-network
+
+volumes:
+  mysql_data_dev:
+    driver: local
+
+networks:
+  reserve-api-network:
+    driver: bridge
