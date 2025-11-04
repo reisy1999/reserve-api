@@ -336,4 +336,68 @@ describe('予約APIの制約とトランザクションを確認する', () => {
       exists: false,
     });
   });
+
+  it('キャンセル期限前であれば職員が予約を取り消せる', async () => {
+    await adminImport('902010', '取消 成功');
+    const loginRes = await request(httpServer)
+      .post('/api/auth/login')
+      .send({ staffId: '902010', pin: '0000' })
+      .expect(200);
+
+    const accessToken = await completeProfile(
+      '902010',
+      loginRes.body.accessToken,
+      '888010',
+    );
+
+    const { slotId } = await createTypeAndSlot({
+      cancelDeadlineDateLocal: '2099-12-31',
+      cancelDeadlineMinuteOfDay: 1320,
+    });
+
+    const reservation = await request(httpServer)
+      .post('/api/reservations')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ slotId })
+      .expect(201);
+
+    await request(httpServer)
+      .delete(`/api/reservations/${reservation.body.id}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(204);
+  });
+
+  it('キャンセル期限経過後の職員キャンセルは409を返す', async () => {
+    await adminImport('902011', '取消 失敗');
+    const loginRes = await request(httpServer)
+      .post('/api/auth/login')
+      .send({ staffId: '902011', pin: '0000' })
+      .expect(200);
+
+    const accessToken = await completeProfile(
+      '902011',
+      loginRes.body.accessToken,
+      '888011',
+    );
+
+    const { slotId } = await createTypeAndSlot({
+      cancelDeadlineDateLocal: '2000-01-01',
+      cancelDeadlineMinuteOfDay: 0,
+    });
+
+    const reservation = await request(httpServer)
+      .post('/api/reservations')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ slotId })
+      .expect(201);
+
+    const response = await request(httpServer)
+      .delete(`/api/reservations/${reservation.body.id}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(409);
+
+    expect(response.body).toMatchObject({
+      message: 'Cancellation deadline passed',
+    });
+  });
 });

@@ -364,8 +364,20 @@ export function calculatePeriodKey(serviceDateLocal: string): string {
 #### 制約の実装
 
 **データベース制約**:
+- `active_flag` は `canceled_at IS NULL` のとき `1` を返す生成列（ストアド）
+- `active_flag` を含めた4列で一意制約を張り、キャンセル済み行（`active_flag = 0`）は制約対象外にする
+
 ```sql
-UNIQUE (staff_id, reservation_type_id, period_key)
+active_flag TINYINT(1) GENERATED ALWAYS AS (
+  CASE WHEN canceled_at IS NULL THEN 1 ELSE 0 END
+) STORED,
+
+UNIQUE KEY UQ_reservations_active_period (
+  staff_id,
+  reservation_type_id,
+  period_key,
+  active_flag
+)
 ```
 
 **チェックロジック**:
@@ -375,6 +387,7 @@ const existing = await reservationRepo.findOne({
     staffId: staff.staffId,
     reservationTypeId: slot.reservationTypeId,
     periodKey,
+    canceledAt: IsNull(),
   },
 });
 if (existing) {
@@ -681,7 +694,7 @@ curl -X POST http://localhost:3000/api/reservations \
 予約処理では以下を使用：
 
 - **悲観的ロック（FOR UPDATE）**: 定員管理
-- **UNIQUE制約**: 年度1回制限・重複防止
+- **UNIQUE制約**: 年度1回制限（active_flag生成列で未キャンセルのみ対象）・重複防止
 
 **理由**: 楽観ロックだけでは定員超過を防げないため。
 
@@ -689,23 +702,53 @@ curl -X POST http://localhost:3000/api/reservations \
 
 ## 8.11 予約キャンセル
 
-### 現状
+### DELETE /api/reservations/{reservationId}
 
-**API未実装**（予約キャンセル機能なし）
+#### 概要
+指定した予約を論理削除（キャンセル）し、`canceledAt` を現在時刻で更新します。あわせて紐付く予約枠の `bookedCount` を 1 減らし、枠の空きが即座に反映されます。
 
-### 運用回避策
+#### 認証
+必須（JWT Bearer認証）
 
-管理者がDBから直接処理：
+#### リクエスト
 
-```sql
--- 方法1: 物理削除
-DELETE FROM reservations WHERE id = 123;
-UPDATE reservation_slots SET booked_count = booked_count - 1 WHERE id = 10;
+**Path Parameters**:
+| パラメータ | 型 | 必須 | 説明 | バリデーション |
+|-----------|-----|------|------|---------------|
+| `reservationId` | number | ◯ | 予約ID | 1以上の整数 |
 
--- 方法2: 論理削除
-UPDATE reservations SET canceled_at = NOW() WHERE id = 123;
-UPDATE reservation_slots SET booked_count = booked_count - 1 WHERE id = 10;
+**例**:
+```http
+DELETE /api/reservations/123
 ```
+
+---
+
+#### レスポンス
+
+**成功 (204 No Content)**  
+本文なし
+
+---
+
+#### エラー
+
+**404 Not Found** - 対象の予約が存在しない、もしくは別ユーザーの予約
+```json
+{
+  "statusCode": 404,
+  "message": "Reservation not found"
+}
+```
+
+---
+
+#### 注意事項
+
+- 論理削除のためレコードは保持され、`canceledAt` のみが更新されます
+- 既にキャンセル済みの予約に対して呼び出した場合も 204 を返し、処理は冪等です
+- キャンセル後は `active_flag` 生成列により年度1回制限の一意制約から外れ、同一（staffId, reservationTypeId, periodKey）での再予約が即時に可能です
+- 予約と予約枠の行を同一トランザクション内で更新し、MySQLでは `pessimistic_write` ロックで同時更新競合を防止します
 
 ---
 

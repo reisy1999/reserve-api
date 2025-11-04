@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { parse } from 'csv-parse/sync';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -38,6 +42,8 @@ interface SlotInput {
   bookingStart?: string | null;
   bookingEnd?: string | null;
   notes?: string | null;
+  cancelDeadlineDateLocal?: string | null;
+  cancelDeadlineMinuteOfDay?: number | null;
 }
 
 @Injectable()
@@ -217,10 +223,80 @@ export class AdminService {
     return this.reservationTypeRepository.save(entity);
   }
 
-  private toDateOrNull(value?: string | null): Date | null {
-    if (!value || value === 'null' || value === 'undefined') return null;
+  private toDateOrNull(field: string, value?: string | null): Date | null {
+    if (value === undefined || value === null) return null;
+    if (value === 'null' || value === 'undefined' || value === '') {
+      return null;
+    }
     const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
+    if (Number.isNaN(parsed.getTime())) {
+      throw new BadRequestException(
+        `${field} must be a valid ISO8601 date string`,
+      );
+    }
+    return parsed;
+  }
+
+  private normalizeCancelDeadline(input: SlotInput): {
+    cancelDeadlineDateLocal: string | null;
+    cancelDeadlineMinuteOfDay: number | null;
+  } {
+    const dateProvided = input.cancelDeadlineDateLocal !== undefined;
+    const minuteProvided = input.cancelDeadlineMinuteOfDay !== undefined;
+
+    if (dateProvided !== minuteProvided) {
+      throw new BadRequestException(
+        'cancelDeadlineDateLocal and cancelDeadlineMinuteOfDay must be provided together',
+      );
+    }
+
+    if (!dateProvided) {
+      return {
+        cancelDeadlineDateLocal: null,
+        cancelDeadlineMinuteOfDay: null,
+      };
+    }
+
+    const dateValue = input.cancelDeadlineDateLocal ?? null;
+    const minuteValue = input.cancelDeadlineMinuteOfDay ?? null;
+
+    if (
+      (dateValue === null && minuteValue !== null) ||
+      (dateValue !== null && minuteValue === null)
+    ) {
+      throw new BadRequestException(
+        'Both cancel deadline fields must be null or non-null together',
+      );
+    }
+
+    if (dateValue === null && minuteValue === null) {
+      return {
+        cancelDeadlineDateLocal: null,
+        cancelDeadlineMinuteOfDay: null,
+      };
+    }
+
+    if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(dateValue)) {
+      throw new BadRequestException(
+        'cancelDeadlineDateLocal must be formatted as YYYY-MM-DD',
+      );
+    }
+
+    if (
+      typeof minuteValue !== 'number' ||
+      Number.isNaN(minuteValue) ||
+      minuteValue < 0 ||
+      minuteValue > 1439
+    ) {
+      throw new BadRequestException(
+        'cancelDeadlineMinuteOfDay must be between 0 and 1439',
+      );
+    }
+
+    return {
+      cancelDeadlineDateLocal: dateValue,
+      cancelDeadlineMinuteOfDay: minuteValue,
+    };
   }
 
   async createSlots(
@@ -234,6 +310,43 @@ export class AdminService {
       if (!reservationType) {
         throw new NotFoundException('Reservation type not found');
       }
+      if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(input.serviceDateLocal)) {
+        throw new BadRequestException(
+          'serviceDateLocal must be formatted as YYYY-MM-DD',
+        );
+      }
+
+      if (input.startMinuteOfDay < 0 || input.startMinuteOfDay > 1439) {
+        throw new BadRequestException(
+          'startMinuteOfDay must be between 0 and 1439',
+        );
+      }
+
+      if (input.durationMinutes <= 0) {
+        throw new BadRequestException('durationMinutes must be greater than 0');
+      }
+
+      if (input.capacity < 0) {
+        throw new BadRequestException(
+          'capacity must be greater than or equal to 0',
+        );
+      }
+
+      const bookingStart = this.toDateOrNull(
+        'bookingStart',
+        input.bookingStart,
+      );
+      const bookingEnd = this.toDateOrNull('bookingEnd', input.bookingEnd);
+
+      if (bookingStart && bookingEnd && bookingStart > bookingEnd) {
+        throw new BadRequestException(
+          'bookingStart must be before or equal to bookingEnd',
+        );
+      }
+
+      const { cancelDeadlineDateLocal, cancelDeadlineMinuteOfDay } =
+        this.normalizeCancelDeadline(input);
+
       const slot = this.reservationSlotRepository.create({
         reservationTypeId: reservationType.id,
         reservationType,
@@ -243,9 +356,11 @@ export class AdminService {
         capacity: input.capacity,
         bookedCount: 0,
         status: input.status ?? 'draft',
-        bookingStart: this.toDateOrNull(input.bookingStart ?? null),
-        bookingEnd: this.toDateOrNull(input.bookingEnd ?? null),
+        bookingStart,
+        bookingEnd,
         notes: input.notes ?? null,
+        cancelDeadlineDateLocal,
+        cancelDeadlineMinuteOfDay,
       });
       slots.push(await this.reservationSlotRepository.save(slot));
     }

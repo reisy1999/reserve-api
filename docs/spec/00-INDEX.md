@@ -15,7 +15,7 @@
 - **[06-Auth-API.md](./06-Auth-API.md)** - 認証API（login/refresh）
 - **[07-Staff-API.md](./07-Staff-API.md)** - 職員API（プロフィール/PIN変更）
 - **[08-Reservation-API.md](./08-Reservation-API.md)** - 予約API
-- **[09-Admin-API.md](./09-Admin-API.md)** - 管理者API（部署・予約種別・スロット管理）✨ 更新: 2025-11-04
+- **[09-Admin-API.md](./09-Admin-API.md)** - 管理者API（枠・予約・職員・部署管理）✨ 更新: 2025-11-04
 
 ### 第4部：認証・セキュリティ
 - **[10-Authentication.md](./10-Authentication.md)** - 認証フロー・JWTトークン仕様
@@ -153,7 +153,7 @@
 ---
 
 **最終更新**: 2025-11-04
-**バージョン**: 1.1.0-draft
+**バージョン**: 1.2.0-draft
 **変更履歴**:
-- 2025-11-04: 管理者API（部署・予約種別・スロット管理）を実装・文書化
+- 2025-11-04: 管理者APIの枠一覧・予約一覧・職員ロック解除・部署更新を追記
 - 2025-11-03: 初版作成

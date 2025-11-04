@@ -10,6 +10,7 @@ import { Staff } from '../staff/entities/staff.entity';
 import { RefreshSession } from './entities/refresh-session.entity';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { AdminJwtGuard } from './guards/admin-jwt.guard';
 import { SecurityModule } from '../security/security.module';
 
 @Global()
@@ -29,7 +30,13 @@ import { SecurityModule } from '../security/security.module';
     SecurityModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard],
-  exports: [AuthService, JwtAuthGuard, JwtStrategy, PassportModule],
+  providers: [AuthService, JwtStrategy, JwtAuthGuard, AdminJwtGuard],
+  exports: [
+    AuthService,
+    JwtAuthGuard,
+    AdminJwtGuard,
+    JwtStrategy,
+    PassportModule,
+  ],
 })
 export class AuthModule {}

@@ -2,11 +2,13 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   HttpCode,
   Param,
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ReservationsService } from './reservations.service';
@@ -16,11 +18,32 @@ import {
   UpdateSlotDepartmentDto,
   type SlotDepartmentResponse,
 } from './dto/slot-department.dto';
+import {
+  AdminSlotQueryDto,
+  type AdminSlotResponse,
+  type PaginatedAdminSlotsResponse,
+} from './dto/admin-slots.dto';
+import { UpdateSlotAdminDto } from './dto/update-slot-admin.dto';
 
 @Controller('admin/slots')
 @UseGuards(AdminTokenGuard)
 export class AdminSlotsController {
   constructor(private readonly reservationsService: ReservationsService) {}
+
+  @Get()
+  async listSlots(
+    @Query() query: AdminSlotQueryDto,
+  ): Promise<PaginatedAdminSlotsResponse> {
+    return this.reservationsService.findSlotsForAdmin(query);
+  }
+
+  @Patch(':id')
+  async updateSlot(
+    @Param('id', ParseIntPipe) slotId: number,
+    @Body() dto: UpdateSlotAdminDto,
+  ): Promise<AdminSlotResponse> {
+    return this.reservationsService.updateSlotForAdmin(slotId, dto);
+  }
 
   @Post(':id/departments')
   async linkDepartment(

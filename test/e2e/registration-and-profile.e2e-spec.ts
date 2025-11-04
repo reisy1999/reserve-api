@@ -219,4 +219,157 @@ describe('二段階登録と本人完了フローを検証する', () => {
       });
     expect(missingPinRes.status).toBe(428);
   });
+
+  describe('Phase 1: 氏名・部署フィールド更新', () => {
+    it('氏名フィールドをPIN不要で更新できる', async () => {
+      await importStaff('901100', '氏名 変更');
+
+      const loginRes = await login('901100', '0000');
+      expect(loginRes.status).toBe(200);
+      const token = loginRes.body.accessToken;
+
+      const updateRes = await request(httpServer)
+        .patch('/api/staffs/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          version: 0,
+          familyName: '佐藤',
+          givenName: '花子',
+        });
+
+      expect(updateRes.status).toBe(200);
+      expect(updateRes.body.familyName).toBe('佐藤');
+      expect(updateRes.body.givenName).toBe('花子');
+      expect(updateRes.body.version).toBe(1);
+    });
+
+    it('カナフィールドをPIN不要で更新できる', async () => {
+      await importStaff('901101', 'カナ 変更');
+
+      const loginRes = await login('901101', '0000');
+      expect(loginRes.status).toBe(200);
+      const token = loginRes.body.accessToken;
+
+      const updateRes = await request(httpServer)
+        .patch('/api/staffs/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          version: 0,
+          familyNameKana: 'サトウ',
+          givenNameKana: 'ハナコ',
+        });
+
+      expect(updateRes.status).toBe(200);
+      expect(updateRes.body.familyNameKana).toBe('サトウ');
+      expect(updateRes.body.givenNameKana).toBe('ハナコ');
+      expect(updateRes.body.version).toBe(1);
+    });
+
+    it('部署IDの更新にはPIN再認証が必要', async () => {
+      await importStaff('901102', '部署 変更');
+
+      const loginRes = await login('901102', '0000');
+      expect(loginRes.status).toBe(200);
+      const token = loginRes.body.accessToken;
+
+      // PIN無しで更新を試みる → 428エラー
+      const noPinRes = await request(httpServer)
+        .patch('/api/staffs/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          version: 0,
+          departmentId: 'ER',
+        });
+      expect(noPinRes.status).toBe(428);
+
+      // PINありで更新 → 成功
+      const withPinRes = await request(httpServer)
+        .patch('/api/staffs/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          version: 0,
+          currentPin: '0000',
+          departmentId: 'ER',
+        });
+      expect(withPinRes.status).toBe(200);
+      expect(withPinRes.body.departmentId).toBe('ER');
+      expect(withPinRes.body.version).toBe(1);
+    });
+
+    it('存在しない部署IDを指定すると404エラー', async () => {
+      await importStaff('901103', '部署 不正');
+
+      const loginRes = await login('901103', '0000');
+      expect(loginRes.status).toBe(200);
+      const token = loginRes.body.accessToken;
+
+      const invalidDeptRes = await request(httpServer)
+        .patch('/api/staffs/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          version: 0,
+          currentPin: '0000',
+          departmentId: 'INVALID_DEPT',
+        });
+      expect(invalidDeptRes.status).toBe(404);
+      expect(invalidDeptRes.body.message).toContain('Department not found');
+    });
+
+    it('氏名が100文字を超えるとバリデーションエラー', async () => {
+      await importStaff('901104', 'バリデ 検証');
+
+      const loginRes = await login('901104', '0000');
+      expect(loginRes.status).toBe(200);
+      const token = loginRes.body.accessToken;
+
+      const longName = 'あ'.repeat(101);
+      const invalidNameRes = await request(httpServer)
+        .patch('/api/staffs/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          version: 0,
+          familyName: longName,
+        });
+      expect(invalidNameRes.status).toBe(400);
+    });
+
+    it('複数フィールドを同時に更新できる', async () => {
+      await importStaff('901105', '複数 同時');
+
+      const loginRes = await login('901105', '0000');
+      expect(loginRes.status).toBe(200);
+      const token = loginRes.body.accessToken;
+
+      const updateRes = await request(httpServer)
+        .patch('/api/staffs/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          version: 0,
+          currentPin: '0000',
+          familyName: '田中',
+          givenName: '次郎',
+          familyNameKana: 'タナカ',
+          givenNameKana: 'ジロウ',
+          departmentId: 'ER',
+          emrPatientId: '777105',
+          dateOfBirth: '1988-08-08',
+          sexCode: '1',
+          jobTitle: '看護師',
+        });
+
+      expect(updateRes.status).toBe(200);
+      expect(updateRes.body).toMatchObject({
+        familyName: '田中',
+        givenName: '次郎',
+        familyNameKana: 'タナカ',
+        givenNameKana: 'ジロウ',
+        departmentId: 'ER',
+        emrPatientId: '777105',
+        dateOfBirth: '1988-08-08',
+        sexCode: '1',
+        jobTitle: '看護師',
+        version: 1,
+      });
+    });
+  });
 });

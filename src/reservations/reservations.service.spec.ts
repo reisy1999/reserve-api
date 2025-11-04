@@ -1,6 +1,6 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { DataSource, IsNull } from 'typeorm';
 import { ReservationsService } from './reservations.service';
 import { Reservation } from './entities/reservation.entity';
 import { ReservationSlot } from './entities/reservation-slot.entity';
@@ -317,7 +317,7 @@ describe('ReservationsService', () => {
         ),
       save: jest
         .fn()
-        .mockRejectedValue(new Error('UQ_reservations_staff_type_period')),
+        .mockRejectedValue(new Error('UQ_reservations_active_period')),
     };
     const managerReservationTypeRepo = {
       findOneBy: jest
@@ -391,6 +391,7 @@ describe('ReservationsService', () => {
         staffId: staff.staffId,
         reservationTypeId: slot.reservationTypeId,
         periodKey: expectedPeriodKey,
+        canceledAt: IsNull(),
       },
     });
     expect(managerReservationTypeRepo.findOneBy).toHaveBeenCalledWith({
@@ -411,5 +412,120 @@ describe('ReservationsService', () => {
     );
     expect(lockedSlot.bookedCount).toBe(slot.bookedCount + 1);
     expect(result).toBe(createdReservation);
+  });
+
+  describe('cancelForStaff', () => {
+    it('throws when the reservation cannot be found', async () => {
+      const staff = buildStaff();
+      const reservationRepo = {
+        findOne: jest.fn().mockResolvedValue(null),
+        save: jest.fn(),
+      };
+      const slotRepo = {
+        findOne: jest.fn(),
+        save: jest.fn(),
+      };
+
+      dataSource.transaction.mockImplementation(async (callback) => {
+        const manager = {
+          getRepository: jest.fn((entity: unknown) => {
+            if (entity === Reservation) return reservationRepo;
+            if (entity === ReservationSlot) return slotRepo;
+            throw new Error('Unexpected repository request');
+          }),
+        };
+        return callback(manager as never);
+      });
+
+      await expect(service.cancelForStaff(staff, 42)).rejects.toThrow(
+        'Reservation not found',
+      );
+      expect(slotRepo.findOne).not.toHaveBeenCalled();
+      expect(reservationRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('is idempotent when the reservation is already canceled', async () => {
+      const staff = buildStaff();
+      const existingReservation = {
+        id: 42,
+        slotId: 99,
+        staffUid: staff.staffUid,
+        canceledAt: new Date(),
+      } as Reservation;
+      const reservationRepo = {
+        findOne: jest.fn().mockResolvedValue(existingReservation),
+        save: jest.fn(),
+      };
+      const slotRepo = {
+        findOne: jest.fn(),
+        save: jest.fn(),
+      };
+
+      dataSource.transaction.mockImplementation(async (callback) => {
+        const manager = {
+          getRepository: jest.fn((entity: unknown) => {
+            if (entity === Reservation) return reservationRepo;
+            if (entity === ReservationSlot) return slotRepo;
+            throw new Error('Unexpected repository request');
+          }),
+        };
+        return callback(manager as never);
+      });
+
+      await expect(
+        service.cancelForStaff(staff, existingReservation.id),
+      ).resolves.toBeUndefined();
+      expect(slotRepo.findOne).not.toHaveBeenCalled();
+      expect(reservationRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('cancels the reservation and decrements the slot count', async () => {
+      const staff = buildStaff();
+      const activeReservation = {
+        id: 42,
+        slotId: 7,
+        staffUid: staff.staffUid,
+        canceledAt: null,
+      } as Reservation;
+      const slot = buildSlot({ id: activeReservation.slotId, bookedCount: 3 });
+      const reservationRepo = {
+        findOne: jest.fn().mockResolvedValue(activeReservation),
+        save: jest
+          .fn()
+          .mockImplementation(async (entity: Reservation) => entity),
+      };
+      const slotRepo = {
+        findOne: jest.fn().mockResolvedValue({ ...slot }),
+        save: jest
+          .fn()
+          .mockImplementation(async (entity: ReservationSlot) => entity),
+      };
+
+      dataSource.transaction.mockImplementation(async (callback) => {
+        const manager = {
+          getRepository: jest.fn((entity: unknown) => {
+            if (entity === Reservation) return reservationRepo;
+            if (entity === ReservationSlot) return slotRepo;
+            throw new Error('Unexpected repository request');
+          }),
+        };
+        return callback(manager as never);
+      });
+
+      await service.cancelForStaff(staff, activeReservation.id);
+
+      expect(reservationRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: activeReservation.id,
+          canceledAt: expect.any(Date),
+        }),
+      );
+      expect(slotRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: slot.id,
+          bookedCount: slot.bookedCount - 1,
+        }),
+      );
+    });
   });
 });

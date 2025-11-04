@@ -4,6 +4,8 @@ import { ReservationsService } from './reservations.service';
 
 const reservationsServiceMock = {
   createForStaff: jest.fn(),
+  cancelForStaff: jest.fn(),
+  findByStaffTypeAndPeriod: jest.fn(),
 };
 
 describe('ReservationsController', () => {
@@ -40,5 +42,16 @@ describe('ReservationsController', () => {
       dto.slotId,
     );
     expect(result).toBe('created');
+  });
+
+  it('cancels a reservation for the current staff', async () => {
+    const staff = { staffUid: 'staff-uid' } as any;
+    reservationsServiceMock.cancelForStaff.mockResolvedValue(undefined);
+
+    await expect(controller.cancel(staff, 10)).resolves.toBeUndefined();
+    expect(reservationsServiceMock.cancelForStaff).toHaveBeenCalledWith(
+      staff,
+      10,
+    );
   });
 });

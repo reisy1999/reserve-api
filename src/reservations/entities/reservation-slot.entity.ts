@@ -60,6 +60,16 @@ export class ReservationSlot {
   @Column({ type: 'varchar', length: 255, name: 'notes', nullable: true })
   notes!: string | null;
 
+  @Column({ type: 'date', name: 'cancel_deadline_date_local', nullable: true })
+  cancelDeadlineDateLocal!: string | null;
+
+  @Column({
+    type: 'integer',
+    name: 'cancel_deadline_minute_of_day',
+    nullable: true,
+  })
+  cancelDeadlineMinuteOfDay!: number | null;
+
   @CreateDateColumn({ type: 'datetime', name: 'created_at' })
   createdAt!: Date;
 

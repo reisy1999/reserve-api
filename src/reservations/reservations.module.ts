@@ -10,6 +10,7 @@ import { Staff } from '../staff/entities/staff.entity';
 import { ReservationSlotDepartment } from './entities/reservation-slot-department.entity';
 import { Department } from '../department/entities/department.entity';
 import { AdminTokenGuard } from '../common/guards/admin-token.guard';
+import { AdminReservationsController } from './admin-reservations.controller';
 
 @Module({
   imports: [
@@ -22,7 +23,11 @@ import { AdminTokenGuard } from '../common/guards/admin-token.guard';
       Department,
     ]),
   ],
-  controllers: [ReservationsController, AdminSlotsController],
+  controllers: [
+    ReservationsController,
+    AdminSlotsController,
+    AdminReservationsController,
+  ],
   providers: [ReservationsService, AdminTokenGuard],
   exports: [ReservationsService],
 })

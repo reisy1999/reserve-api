@@ -293,4 +293,56 @@ describe('Departments API (e2e)', () => {
       expect(response.body.active).toBe(false);
     });
   });
+
+  describe('Admin API - Mutations', () => {
+    it('creates a new department', async () => {
+      const response = await request(httpServer)
+        .post('/api/admin/departments')
+        .set(adminHeaders('dept-create-1'))
+        .send({ id: 'LAB', name: 'Laboratory', active: true })
+        .expect(201);
+
+      expect(response.body).toMatchObject({
+        id: 'LAB',
+        name: 'Laboratory',
+        active: true,
+      });
+
+      const repo = dataSource.getRepository(Department);
+      const created = await repo.findOne({ where: { id: 'LAB' } });
+      expect(created).toBeTruthy();
+    });
+
+    it('returns 409 when department already exists', async () => {
+      const repo = dataSource.getRepository(Department);
+      await repo.save({ id: 'HR', name: 'Human Resources', active: true });
+
+      await request(httpServer)
+        .post('/api/admin/departments')
+        .set(adminHeaders('dept-create-409'))
+        .send({ id: 'HR', name: 'Human Resources', active: true })
+        .expect(409);
+    });
+
+    it('updates name and active flag', async () => {
+      const repo = dataSource.getRepository(Department);
+      await repo.save({ id: 'QA', name: 'Quality Assurance', active: true });
+
+      const response = await request(httpServer)
+        .patch('/api/admin/departments/QA')
+        .set(adminHeaders('dept-update-1'))
+        .send({ name: 'QA Center', active: false })
+        .expect(200);
+
+      expect(response.body).toMatchObject({
+        id: 'QA',
+        name: 'QA Center',
+        active: false,
+      });
+
+      const updated = await repo.findOne({ where: { id: 'QA' } });
+      expect(updated?.name).toBe('QA Center');
+      expect(updated?.active).toBe(false);
+    });
+  });
 });

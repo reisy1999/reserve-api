@@ -14,12 +14,12 @@ import { Staff } from '../../staff/entities/staff.entity';
 import { ReservationSlot } from './reservation-slot.entity';
 
 @Entity('reservations')
-@Unique('UQ_reservations_staff_type_period', [
-  'staffId',
-  'reservationTypeId',
-  'periodKey',
-])
 @Unique('UQ_reservations_slot_staff', ['slotId', 'staffId'])
+@Index(
+  'UQ_reservations_active_period',
+  ['staffId', 'reservationTypeId', 'periodKey', 'activeFlag'],
+  { unique: true },
+)
 export class Reservation {
   @PrimaryGeneratedColumn('increment')
   id!: number;
@@ -69,6 +69,17 @@ export class Reservation {
 
   @Column({ type: 'datetime', name: 'canceled_at', nullable: true })
   canceledAt!: Date | null;
+
+  @Column({
+    type: 'int',
+    name: 'active_flag',
+    generatedType: 'STORED',
+    asExpression: 'CASE WHEN canceled_at IS NULL THEN 1 ELSE 0 END',
+    select: false,
+    insert: false,
+    update: false,
+  })
+  activeFlag!: number;
 
   @CreateDateColumn({ type: 'datetime', name: 'created_at' })
   createdAt!: Date;

@@ -16,6 +16,8 @@ interface BulkSlotDto {
     bookingStart?: string | null;
     bookingEnd?: string | null;
     notes?: string | null;
+    cancelDeadlineDateLocal?: string | null;
+    cancelDeadlineMinuteOfDay?: number | null;
   }>;
 }
 

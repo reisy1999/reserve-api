@@ -118,21 +118,30 @@ Content-Type: application/json
 |-----------|-----|------|------|---------------|
 | `version` | number | ◯ | 楽観ロックバージョン | 0以上の整数 |
 | `currentPin` | string | △ | 現在のPIN（重要項目更新時のみ必須） | 数字4桁 |
-| `emrPatientId` | string | - | EMR患者ID | 数字のみ、最大64桁 |
-| `dateOfBirth` | string | - | 生年月日 | YYYY-MM-DD形式 |
-| `sexCode` | string | - | 性別コード | `1` または `2` |
-| `familyNameKana` | string | - | 姓カナ | 任意文字列 |
-| `givenNameKana` | string | - | 名カナ | 任意文字列 |
-| `jobTitle` | string | - | 職種 | 任意文字列 |
+| `familyName` | string | - | 姓 | 1-100文字 |
+| `givenName` | string | - | 名 | 1-100文字 |
+| `familyNameKana` | string | - | 姓カナ | 1-100文字 |
+| `givenNameKana` | string | - | 名カナ | 1-100文字 |
+| `departmentId` | string | - | 部署ID | 既存部署のみ（PIN必須） |
+| `emrPatientId` | string | - | EMR患者ID | 数字のみ、最大64桁（PIN必須） |
+| `dateOfBirth` | string | - | 生年月日 | YYYY-MM-DD形式（PIN必須） |
+| `sexCode` | string | - | 性別コード | `1` または `2`（PIN必須） |
+| `jobTitle` | string | - | 職種 | 任意文字列（PIN必須） |
 
 **例**:
 ```json
 {
   "version": 3,
   "currentPin": "1234",
+  "familyName": "山田",
+  "givenName": "太郎",
+  "familyNameKana": "やまだ",
+  "givenNameKana": "たろう",
+  "departmentId": "ER",
   "emrPatientId": "123456",
   "dateOfBirth": "1990-05-15",
-  "sexCode": "1"
+  "sexCode": "1",
+  "jobTitle": "医師"
 }
 ```
 
@@ -208,6 +217,14 @@ Content-Type: application/json
 }
 ```
 
+**404 Not Found** - 部署が存在しない
+```json
+{
+  "statusCode": 404,
+  "message": "Department not found"
+}
+```
+
 ---
 
 ### ビジネスルール
@@ -216,12 +233,24 @@ Content-Type: application/json
 
 以下の項目を更新する場合、`currentPin` が必須です：
 
-- `emrPatientId`
-- `dateOfBirth`
-- `sexCode`
-- `jobTitle`
+- `departmentId` - 部署ID（部署の存在確認も実施）
+- `emrPatientId` - EMR患者ID
+- `dateOfBirth` - 生年月日
+- `sexCode` - 性別コード
+- `jobTitle` - 職種
 
-**理由**: これらは医療記録に影響する重要情報のため、本人確認を要求。
+**理由**: これらは医療記録・人事情報に影響する重要情報のため、本人確認を要求。
+
+#### PIN再認証が不要な項目
+
+以下の項目はPIN不要で更新可能です：
+
+- `familyName` - 姓
+- `givenName` - 名
+- `familyNameKana` - 姓カナ
+- `givenNameKana` - 名カナ
+
+**注意**: 氏名の更新は本人でも可能ですが、通常は管理者による訂正を想定しています。
 
 #### 楽観ロック
 

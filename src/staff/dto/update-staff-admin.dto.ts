@@ -1,5 +1,6 @@
 import {
   IsDefined,
+  IsEnum,
   IsInt,
   IsOptional,
   IsString,
@@ -9,15 +10,11 @@ import {
   Min,
 } from 'class-validator';
 
-export class UpdateProfileDto {
+export class UpdateStaffAdminDto {
   @IsDefined()
   @IsInt()
   @Min(0)
   version!: number;
-
-  @IsOptional()
-  @IsString()
-  currentPin?: string;
 
   @IsOptional()
   @IsString()
@@ -41,6 +38,10 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @IsString()
+  jobTitle?: string;
+
+  @IsOptional()
+  @IsString()
   departmentId?: string;
 
   @IsOptional()
@@ -60,6 +61,10 @@ export class UpdateProfileDto {
   sexCode?: '1' | '2';
 
   @IsOptional()
-  @IsString()
-  jobTitle?: string;
+  @IsEnum(['active', 'suspended', 'left'])
+  status?: 'active' | 'suspended' | 'left';
+
+  @IsOptional()
+  @IsEnum(['STAFF', 'ADMIN'])
+  role?: 'STAFF' | 'ADMIN';
 }

@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  ParseIntPipe,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ReservationsService } from './reservations.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { CheckReservationQueryDto } from './dto/check-reservation-query.dto';
@@ -36,5 +47,14 @@ export class ReservationsController {
     @Body() dto: CreateReservationDto,
   ): Promise<Reservation> {
     return this.reservationsService.createForStaff(staff, dto.slotId);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  async cancel(
+    @CurrentStaff() staff: Staff,
+    @Param('id', ParseIntPipe) reservationId: number,
+  ): Promise<void> {
+    await this.reservationsService.cancelForStaff(staff, reservationId);
   }
 }

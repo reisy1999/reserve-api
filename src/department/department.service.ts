@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   type Repository,
@@ -12,6 +16,8 @@ import type {
   PaginatedDepartmentsResponse,
   DepartmentAdminResponse,
 } from './dto/find-departments-admin.dto';
+import { CreateDepartmentAdminDto } from './dto/create-department-admin.dto';
+import { UpdateDepartmentAdminDto } from './dto/update-department-admin.dto';
 
 export interface DepartmentSummary {
   id: string;
@@ -108,6 +114,61 @@ export class DepartmentService {
       active: department.active,
       createdAt: department.createdAt,
       updatedAt: department.updatedAt,
+    };
+  }
+
+  async createForAdmin(
+    dto: CreateDepartmentAdminDto,
+  ): Promise<DepartmentAdminResponse> {
+    const existing = await this.departmentRepository.findOne({
+      where: { id: dto.id },
+    });
+    if (existing) {
+      throw new ConflictException(`Department id '${dto.id}' already exists`);
+    }
+
+    const department = this.departmentRepository.create({
+      id: dto.id,
+      name: dto.name,
+      active: dto.active ?? true,
+    });
+    const saved = await this.departmentRepository.save(department);
+
+    return {
+      id: saved.id,
+      name: saved.name,
+      active: saved.active,
+      createdAt: saved.createdAt,
+      updatedAt: saved.updatedAt,
+    };
+  }
+
+  async updateForAdmin(
+    id: string,
+    dto: UpdateDepartmentAdminDto,
+  ): Promise<DepartmentAdminResponse> {
+    const department = await this.departmentRepository.findOne({
+      where: { id },
+    });
+    if (!department) {
+      throw new NotFoundException(`Department with id '${id}' not found`);
+    }
+
+    if (dto.name !== undefined) {
+      department.name = dto.name;
+    }
+
+    if (dto.active !== undefined) {
+      department.active = dto.active;
+    }
+
+    const saved = await this.departmentRepository.save(department);
+    return {
+      id: saved.id,
+      name: saved.name,
+      active: saved.active,
+      createdAt: saved.createdAt,
+      updatedAt: saved.updatedAt,
     };
   }
 }

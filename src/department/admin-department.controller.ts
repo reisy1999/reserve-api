@@ -1,7 +1,10 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
+  Patch,
+  Post,
   Param,
   Query,
   UseGuards,
@@ -13,6 +16,8 @@ import {
   type PaginatedDepartmentsResponse,
   type DepartmentAdminResponse,
 } from './dto/find-departments-admin.dto';
+import { CreateDepartmentAdminDto } from './dto/create-department-admin.dto';
+import { UpdateDepartmentAdminDto } from './dto/update-department-admin.dto';
 
 @Controller('admin/departments')
 @UseGuards(AdminTokenGuard)
@@ -80,5 +85,20 @@ export class AdminDepartmentController {
   @Get(':id')
   async findOne(@Param('id') id: string): Promise<DepartmentAdminResponse> {
     return this.departmentService.findOneForAdmin(id);
+  }
+
+  @Post()
+  async create(
+    @Body() body: CreateDepartmentAdminDto,
+  ): Promise<DepartmentAdminResponse> {
+    return this.departmentService.createForAdmin(body);
+  }
+
+  @Patch(':id')
+  async update(
+    @Param('id') id: string,
+    @Body() body: UpdateDepartmentAdminDto,
+  ): Promise<DepartmentAdminResponse> {
+    return this.departmentService.updateForAdmin(id, body);
   }
 }
