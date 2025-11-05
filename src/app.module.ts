@@ -1,4 +1,9 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import {
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  OnModuleInit,
+} from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import bodyParser from 'body-parser';
 import { AppController } from './app.controller';
@@ -10,6 +15,8 @@ import { StaffModule } from './staff/staff.module';
 import { DepartmentModule } from './department/department.module';
 import { SecurityModule } from './security/security.module';
 import { ReservationTypeModule } from './reservation-type/reservation-type.module';
+import { Staff } from './staff/entities/staff.entity';
+import { Department } from './department/entities/department.entity';
 
 function buildTypeOrmConfig(): Parameters<typeof TypeOrmModule.forRoot>[0] {
   const isTestEnv = process.env.NODE_ENV === 'test';
@@ -51,6 +58,7 @@ function buildTypeOrmConfig(): Parameters<typeof TypeOrmModule.forRoot>[0] {
   imports: [
     SecurityModule,
     TypeOrmModule.forRoot(buildTypeOrmConfig()),
+    TypeOrmModule.forFeature([Staff, Department]),
     AuthModule,
     DepartmentModule,
     StaffModule,
@@ -61,7 +69,13 @@ function buildTypeOrmConfig(): Parameters<typeof TypeOrmModule.forRoot>[0] {
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule implements NestModule {
+export class AppModule implements NestModule, OnModuleInit {
+  constructor(private readonly appService: AppService) {}
+
+  async onModuleInit(): Promise<void> {
+    await this.appService.initializeDefaultAdmin();
+  }
+
   configure(consumer: MiddlewareConsumer): void {
     consumer
       .apply(

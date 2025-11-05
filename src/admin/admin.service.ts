@@ -276,7 +276,7 @@ export class AdminService {
       };
     }
 
-    if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(dateValue)) {
+    if (!dateValue || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(dateValue)) {
       throw new BadRequestException(
         'cancelDeadlineDateLocal must be formatted as YYYY-MM-DD',
       );

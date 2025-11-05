@@ -20,7 +20,14 @@
     "test:e2e": "jest --config ./test/jest-e2e.json --runInBand",
     "test:e2e:ci": "bash scripts/run-e2e-ci-mode.sh",
     "test:e2e:verify": "bash scripts/verify-local-env.sh",
-    "pretest:e2e": "npx jest --clearCache"
+    "pretest:e2e": "npx jest --clearCache",
+    "typeorm": "typeorm-ts-node-commonjs",
+    "migration:generate": "npm run typeorm -- -d src/data-source.ts migration:generate",
+    "migration:run": "npm run typeorm -- -d src/data-source.ts migration:run",
+    "migration:revert": "npm run typeorm -- -d src/data-source.ts migration:revert",
+    "migration:show": "npm run typeorm -- -d src/data-source.ts migration:show",
+    "db:init": "bash scripts/db-init.sh",
+    "db:reset": "docker compose -f docker-compose.dev.yml down -v && docker compose -f docker-compose.dev.yml up -d && npm run db:init"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
