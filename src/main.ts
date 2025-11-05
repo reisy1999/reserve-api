@@ -12,8 +12,8 @@ async function bootstrap(): Promise<void> {
     bodyParser.text({ type: ['text/plain', 'text/csv', 'application/csv'] }),
   );
   configureApp(app);
-  await app.listen(3000);
+  await app.listen(3000, '0.0.0.0');
   const logger = new Logger('Bootstrap');
-  logger.log('🚀 Server is running on http://localhost:3000');
+  logger.log('🚀 Server is running on http://0.0.0.0:3000');
 }
 void bootstrap();
