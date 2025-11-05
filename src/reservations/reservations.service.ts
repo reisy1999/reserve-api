@@ -31,6 +31,7 @@ import type {
   AdminReservationResponse,
   PaginatedAdminReservationsResponse,
 } from './dto/admin-reservations.dto';
+import type { FetchSlotsQueryDto } from './dto/fetch-slots.dto';
 
 @Injectable()
 export class ReservationsService {
@@ -440,6 +441,55 @@ export class ReservationsService {
         limit,
       },
     };
+  }
+
+  async findSlotsForStaff(query: FetchSlotsQueryDto): Promise<ReservationSlot[]> {
+    if (query.serviceDateFrom && query.serviceDateTo) {
+      if (query.serviceDateFrom > query.serviceDateTo) {
+        throw new BadRequestException(
+          'serviceDateFrom must be before or equal to serviceDateTo',
+        );
+      }
+    }
+
+    const qb = this.slotRepository.createQueryBuilder('slot');
+
+    // Filter by reservation type (required)
+    qb.andWhere('slot.reservationTypeId = :reservationTypeId', {
+      reservationTypeId: query.reservationTypeId,
+    });
+
+    // Security: Only show published slots to staff users by default
+    // Allow filtering by status if explicitly provided
+    const statusFilter = query.status ?? 'published';
+    qb.andWhere('slot.status = :status', { status: statusFilter });
+
+    // Filter by service date range
+    if (query.serviceDateFrom) {
+      qb.andWhere('slot.serviceDateLocal >= :from', {
+        from: query.serviceDateFrom,
+      });
+    }
+    if (query.serviceDateTo) {
+      qb.andWhere('slot.serviceDateLocal <= :to', {
+        to: query.serviceDateTo,
+      });
+    }
+
+    // Filter by department if specified
+    if (query.departmentId) {
+      qb.leftJoin('slot.slotDepartments', 'slotDept')
+        .andWhere('slotDept.departmentId = :departmentId', {
+          departmentId: query.departmentId,
+        });
+    }
+
+    // Order by service date and start time
+    qb.orderBy('slot.serviceDateLocal', 'ASC');
+    qb.addOrderBy('slot.startMinuteOfDay', 'ASC');
+    qb.addOrderBy('slot.id', 'ASC');
+
+    return qb.getMany();
   }
 
   private parseNullableDate(
