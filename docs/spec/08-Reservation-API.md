@@ -2,11 +2,178 @@
 
 ## 8.1 概要
 
-予約APIは、職員が予約枠を選択して予約を登録する機能を提供します。また、特定の予約種別・期間での予約状況を確認する機能も提供します。
+予約APIは、職員が予約枠を選択して予約を登録する機能を提供します。また、特定の予約種別・期間での予約状況を確認する機能や、利用可能な予約枠の一覧取得機能も提供します。
 
 ---
 
-## 8.2 GET /api/reservations/check
+## 8.2 GET /api/reservations/slots
+
+### 概要
+指定した予約種別の利用可能な予約枠を取得します。フロントエンドで予約枠の選択画面に使用します。
+
+### 認証
+必須（JWT Bearer認証）
+
+### リクエスト
+
+**Headers**:
+```http
+Authorization: Bearer <access_token>
+```
+
+**Query Parameters**:
+| パラメータ | 型 | 必須 | 説明 | バリデーション |
+|-----------|-----|------|------|---------------|
+| `reservationTypeId` | number | ◯ | 予約種別ID | 1以上の整数 |
+| `serviceDateFrom` | string | - | サービス提供日の開始日（例: `2025-05-01`） | YYYY-MM-DD形式 |
+| `serviceDateTo` | string | - | サービス提供日の終了日（例: `2025-05-31`） | YYYY-MM-DD形式 |
+| `departmentId` | string | - | 部署ID（例: `VAC`） | 文字列 |
+| `status` | string | - | 予約枠ステータス（`published`, `draft`, `closed`）<br/>指定しない場合は `published` のみ | enum値 |
+
+**例**:
+```http
+GET /api/reservations/slots?reservationTypeId=1&serviceDateFrom=2025-05-01&serviceDateTo=2025-05-31
+```
+
+---
+
+### レスポンス
+
+#### 成功 (200 OK)
+
+```json
+[
+  {
+    "id": 10,
+    "reservationTypeId": 1,
+    "serviceDateLocal": "2025-05-01",
+    "startMinuteOfDay": 540,
+    "durationMinutes": 30,
+    "capacity": 10,
+    "bookedCount": 5,
+    "status": "published",
+    "bookingStart": "2025-01-01T00:00:00.000Z",
+    "bookingEnd": null,
+    "cancelDeadlineDateLocal": "2025-04-30",
+    "cancelDeadlineMinuteOfDay": 1020,
+    "notes": null,
+    "createdAt": "2025-11-03T10:00:00.000Z",
+    "updatedAt": "2025-11-03T10:00:00.000Z"
+  },
+  {
+    "id": 11,
+    "reservationTypeId": 1,
+    "serviceDateLocal": "2025-05-02",
+    "startMinuteOfDay": 600,
+    "durationMinutes": 30,
+    "capacity": 10,
+    "bookedCount": 3,
+    "status": "published",
+    "bookingStart": "2025-01-01T00:00:00.000Z",
+    "bookingEnd": null,
+    "cancelDeadlineDateLocal": null,
+    "cancelDeadlineMinuteOfDay": null,
+    "notes": null,
+    "createdAt": "2025-11-03T10:00:00.000Z",
+    "updatedAt": "2025-11-03T10:00:00.000Z"
+  }
+]
+```
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `id` | number | 予約枠ID |
+| `reservationTypeId` | number | 予約種別ID |
+| `serviceDateLocal` | string | サービス提供日（YYYY-MM-DD） |
+| `startMinuteOfDay` | number | 開始分（0〜1439、0 = 00:00、540 = 09:00） |
+| `durationMinutes` | number | 所要時間（分） |
+| `capacity` | number | 定員 |
+| `bookedCount` | number | 現在の予約数 |
+| `status` | string | 予約枠ステータス（`published`, `draft`, `closed`） |
+| `bookingStart` | string \| null | 受付開始日時 |
+| `bookingEnd` | string \| null | 受付終了日時 |
+| `cancelDeadlineDateLocal` | string \| null | キャンセル締切日（YYYY-MM-DD） |
+| `cancelDeadlineMinuteOfDay` | number \| null | キャンセル締切時刻（分） |
+| `notes` | string \| null | 備考 |
+| `createdAt` | string | 作成日時 |
+| `updatedAt` | string | 更新日時 |
+
+---
+
+#### エラー
+
+**400 Bad Request** - バリデーションエラー
+```json
+{
+  "statusCode": 400,
+  "message": [
+    "reservationTypeId must be an integer number",
+    "reservationTypeId must not be less than 1"
+  ],
+  "error": "Bad Request"
+}
+```
+
+**400 Bad Request** - 日付範囲エラー
+```json
+{
+  "statusCode": 400,
+  "message": "serviceDateFrom must be before or equal to serviceDateTo"
+}
+```
+
+**401 Unauthorized** - 認証エラー
+```json
+{
+  "statusCode": 401,
+  "message": "Unauthorized"
+}
+```
+
+---
+
+### 使用例
+
+```bash
+# 基本的な使用例
+curl -X GET "http://localhost:3000/api/reservations/slots?reservationTypeId=1" \
+  -H "Authorization: Bearer <token>"
+
+# 日付範囲を指定
+curl -X GET "http://localhost:3000/api/reservations/slots?reservationTypeId=1&serviceDateFrom=2025-05-01&serviceDateTo=2025-05-31" \
+  -H "Authorization: Bearer <token>"
+
+# 部署でフィルタリング
+curl -X GET "http://localhost:3000/api/reservations/slots?reservationTypeId=1&departmentId=VAC" \
+  -H "Authorization: Bearer <token>"
+```
+
+### フロントエンドでの活用例
+
+```typescript
+// 予約枠一覧を取得
+const slots = await fetch(
+  `/api/reservations/slots?reservationTypeId=1&serviceDateFrom=2025-05-01&serviceDateTo=2025-05-31`,
+  { headers: { Authorization: `Bearer ${token}` } }
+).then(res => res.json());
+
+// 空きがある枠のみ表示
+const availableSlots = slots.filter(slot => slot.bookedCount < slot.capacity);
+```
+
+---
+
+### 注意事項
+
+- デフォルトでは `published` ステータスの予約枠のみ返却されます（セキュリティ）
+- `status` パラメータを明示的に指定することで、他のステータスの枠も取得可能です
+- 部署フィルタ（`departmentId`）を指定した場合、その部署に割り当てられた枠のみ返却されます
+- 予約枠は `serviceDateLocal`、`startMinuteOfDay`、`id` の順にソートされます
+- 条件に一致する枠がない場合は空配列 `[]` が返却されます
+
+---
+
+## 8.3 GET /api/reservations/check
 
 ### 概要
 指定した予約種別と期間において、現在のユーザーが既に予約を持っているかを確認します。フロントエンドで予約詳細画面と新規予約画面の出し分けに使用します。
@@ -159,7 +326,7 @@ if (exists) {
 
 ---
 
-## 8.3 POST /api/reservations
+## 8.4 POST /api/reservations
 
 ### 概要
 指定した予約枠に対して予約を登録します。
@@ -299,9 +466,9 @@ Content-Type: application/json
 
 ---
 
-## 8.4 ビジネスルール
+## 8.5 ビジネスルール
 
-### 8.4.1 プロフィール完了チェック
+### 8.5.1 プロフィール完了チェック
 
 予約を行うには、以下の条件を満たす必要があります：
 
@@ -324,7 +491,7 @@ if (!staff.emrPatientId || !staff.dateOfBirth || !staff.sexCode) {
 
 ---
 
-### 8.4.2 受付期間チェック
+### 8.5.2 受付期間チェック
 
 予約枠には受付期間が設定されています：
 
@@ -338,7 +505,7 @@ if (!staff.emrPatientId || !staff.dateOfBirth || !staff.sexCode) {
 
 ---
 
-### 8.4.3 年度1回制限
+### 8.5.3 年度1回制限
 
 同一職員は、同一年度・同一予約種別の予約を **1回のみ** 実施可能。
 
@@ -397,7 +564,7 @@ if (existing) {
 
 ---
 
-### 8.4.4 定員管理
+### 8.5.4 定員管理
 
 予約枠には定員があり、定員に達したら新規予約を受け付けません。
 
@@ -429,7 +596,7 @@ await slotRepo.save(lockedSlot);
 
 ---
 
-### 8.4.5 重複予約防止
+### 8.5.5 重複予約防止
 
 同一職員が同一枠に複数回予約することを防止します。
 
@@ -440,7 +607,7 @@ UNIQUE (slot_id, staff_id)
 
 ---
 
-## 8.5 シーケンス図
+## 8.6 シーケンス図
 
 ```mermaid
 sequenceDiagram
@@ -506,7 +673,7 @@ sequenceDiagram
 
 ---
 
-## 8.6 開始時刻の表現
+## 8.7 開始時刻の表現
 
 ### startMinuteOfDay の説明
 
@@ -535,7 +702,7 @@ const minute = startMinuteOfDay % 60;
 
 ---
 
-## 8.7 複数年度の予約例
+## 8.8 複数年度の予約例
 
 ### シナリオ: 職員Aが「インフルエンザ予防接種」を予約
 
@@ -547,7 +714,7 @@ const minute = startMinuteOfDay % 60;
 
 ---
 
-## 8.8 予約枠ステータス
+## 8.9 予約枠ステータス
 
 ### ステータス遷移
 
@@ -583,7 +750,7 @@ stateDiagram-v2
 
 ---
 
-## 8.9 使用例
+## 8.10 使用例
 
 ### 成功ケース
 
@@ -687,7 +854,7 @@ curl -X POST http://localhost:3000/api/reservations \
 
 ---
 
-## 8.10 トランザクション分離レベル
+## 8.11 トランザクション分離レベル
 
 ### READ COMMITTED（MySQL デフォルト）
 
@@ -700,7 +867,7 @@ curl -X POST http://localhost:3000/api/reservations \
 
 ---
 
-## 8.11 予約キャンセル
+## 8.12 予約キャンセル
 
 ### DELETE /api/reservations/{reservationId}
 
@@ -752,7 +919,7 @@ DELETE /api/reservations/123
 
 ---
 
-## 8.12 関連ドキュメント
+## 8.13 関連ドキュメント
 
 - **[05-API-Overview.md](./05-API-Overview.md)** - API共通仕様
 - **[06-Auth-API.md](./06-Auth-API.md)** - 認証API詳細

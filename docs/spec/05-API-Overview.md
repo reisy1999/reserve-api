@@ -183,9 +183,12 @@ Idempotency-Key: <unique_key>
 
 ### 5.6.3 予約（詳細: [08-Reservation-API.md](./08-Reservation-API.md)）
 
-| メソッド | パス                | 認証 | 説明     |
-| -------- | ------------------- | ---- | -------- |
-| POST     | `/api/reservations` | JWT  | 予約登録 |
+| メソッド | パス                       | 認証 | 説明               |
+| -------- | -------------------------- | ---- | ------------------ |
+| GET      | `/api/reservations/slots`  | JWT  | 予約枠一覧取得     |
+| GET      | `/api/reservations/check`  | JWT  | 予約存在確認       |
+| POST     | `/api/reservations`        | JWT  | 予約登録           |
+| DELETE   | `/api/reservations/:id`    | JWT  | 予約キャンセル     |
 
 ---
 
