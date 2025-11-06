@@ -7,6 +7,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
+RUN apk add --no-cache dumb-init curl
+
 # ソースコードをコピー
 COPY . .
 
