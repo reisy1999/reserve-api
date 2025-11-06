@@ -13,6 +13,8 @@ COPY package.json package-lock.json ./
 RUN npm ci --only=production && \
     npm ci --only=development
 
+RUN apk add --no-cache dumb-init curl
+
 # Copy source code
 COPY . .
 
