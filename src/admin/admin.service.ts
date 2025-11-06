@@ -111,7 +111,7 @@ export class AdminService {
       warnings: [],
     };
 
-    const requiredHeaders = ['名前(漢字)', '本部ID', '部署', '職種'];
+    const requiredHeaders = ['姓', '名', '本部ID', '部署ID', '職種'];
     if (records.length === 0) {
       summary.warnings.push('CSV contained no importable rows.');
     }
@@ -138,8 +138,9 @@ export class AdminService {
       }
 
       const staffId = (record['本部ID'] ?? '').trim();
-      const fullName = (record['名前(漢字)'] ?? '').trim();
-      const departmentId = (record['部署'] ?? '').trim();
+      const familyName = (record['姓'] ?? '').trim();
+      const givenName = (record['名'] ?? '').trim();
+      const departmentId = (record['部署ID'] ?? '').trim();
       const jobTitle = (record['職種'] ?? '').trim();
 
       if (!staffId) {
@@ -148,11 +149,14 @@ export class AdminService {
         reasons.push('staffId must be numeric.');
       }
 
-      if (!fullName) {
-        reasons.push('名前(漢字) is required.');
+      if (!familyName) {
+        reasons.push('姓 is required.');
+      }
+      if (!givenName) {
+        reasons.push('名 is required.');
       }
       if (!departmentId) {
-        reasons.push('部署 is required.');
+        reasons.push('部署ID is required.');
       }
 
       let status: ImportRowResult['status'] = 'created';
@@ -180,7 +184,8 @@ export class AdminService {
       if (status === 'created' && !dryRun) {
         const payload: StaffImportPayload = {
           staffId,
-          fullName,
+          familyName,
+          givenName,
           departmentId,
           jobTitle: jobTitle || '未設定',
         };

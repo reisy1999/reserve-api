@@ -17,7 +17,8 @@ import {
 
 export interface StaffImportPayload {
   staffId: string;
-  fullName: string;
+  familyName: string;
+  givenName: string;
   departmentId: string;
   jobTitle: string;
 }
@@ -86,8 +87,8 @@ export class StaffService {
     const pinHash = await this.securityService.hash('0000');
     const staff = this.staffRepository.create({
       staffId: payload.staffId,
-      familyName: payload.fullName,
-      givenName: payload.fullName,
+      familyName: payload.familyName,
+      givenName: payload.givenName,
       familyNameKana: null,
       givenNameKana: null,
       department,
