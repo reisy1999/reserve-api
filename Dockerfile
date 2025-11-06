@@ -13,8 +13,6 @@ COPY package.json package-lock.json ./
 RUN npm ci --only=production && \
     npm ci --only=development
 
-RUN apk add --no-cache dumb-init curl
-
 # Copy source code
 COPY . .
 
@@ -25,7 +23,7 @@ RUN npm run build
 FROM node:20.19.3-alpine AS production
 
 # Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+RUN apk add --no-cache dumb-init curl
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
