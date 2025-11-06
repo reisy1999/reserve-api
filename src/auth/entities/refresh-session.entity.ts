@@ -3,9 +3,11 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
+  
 } from 'typeorm';
 import { Staff } from '../../staff/entities/staff.entity';
 
@@ -17,6 +19,8 @@ export class RefreshSession {
   @Column({ type: 'varchar', length: 255, name: 'staff_uid' })
   @Index('IDX_refresh_sessions_staff_uid')
   staffUid!: string;
+
+  @JoinColumn({ name: 'staff_uid', referencedColumnName: 'staffUid' })
 
   @ManyToOne(() => Staff, { nullable: false, onDelete: 'CASCADE' })
   staff!: Staff;
